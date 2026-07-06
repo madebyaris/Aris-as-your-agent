@@ -6,6 +6,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   createSession,
   getSettings,
+  listProjects,
   saveApiKey,
 } from '#/server/aris'
 import type { ArisStreamEvent } from '@aris/stream'
@@ -34,6 +35,9 @@ function createChatStore() {
 
 export function ChatPage() {
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [projectId, setProjectId] = useState<string>('')
+  const [workspacePath, setWorkspacePath] = useState<string | null>(null)
+  const [projectName, setProjectName] = useState<string | null>(null)
   const [input, setInput] = useState('')
   const [apiKeyInput, setApiKeyInput] = useState('')
   const storeRef = useRef(createChatStore())
@@ -46,10 +50,21 @@ export function ChatPage() {
     queryFn: () => getSettings(),
   })
 
+  const projectsQuery = useQuery({
+    queryKey: ['projects'],
+    queryFn: () => listProjects(),
+    enabled: settingsQuery.data?.hasApiKey === true,
+  })
+
   const sessionMutation = useMutation({
-    mutationFn: async () => {
-      const session = await createSession()
+    mutationFn: async (selectedProjectId?: string) => {
+      const session = await createSession({
+        data: selectedProjectId ? { projectId: selectedProjectId } : {},
+      })
       setSessionId(session.sessionId)
+      setWorkspacePath(session.path)
+      setProjectName(session.projectName ?? null)
+      if (session.projectId) setProjectId(session.projectId)
       return session
     },
   })
@@ -61,9 +76,23 @@ export function ChatPage() {
 
   useEffect(() => {
     if (settingsQuery.data?.hasApiKey && !sessionId && !sessionMutation.isPending) {
-      sessionMutation.mutate()
+      sessionMutation.mutate(projectId || undefined)
     }
-  }, [settingsQuery.data?.hasApiKey, sessionId, sessionMutation])
+  }, [settingsQuery.data?.hasApiKey, sessionId, sessionMutation, projectId])
+
+  async function handleProjectChange(nextProjectId: string) {
+    setProjectId(nextProjectId)
+    setSessionId(null)
+    setWorkspacePath(null)
+    setProjectName(null)
+    store.setState((s) => ({
+      ...s,
+      messages: [],
+      streamingText: '',
+      activity: [],
+      isStreaming: false,
+    }))
+  }
 
   async function sendMessage(message: string) {
     if (!sessionId || !message.trim() || state.isStreaming) return
@@ -81,7 +110,11 @@ export function ChatPage() {
     const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId, message: message.trim() }),
+      body: JSON.stringify({
+        sessionId,
+        message: message.trim(),
+        ...(projectId ? { projectId } : {}),
+      }),
     })
 
     if (!response.ok || !response.body) {
@@ -274,12 +307,36 @@ export function ChatPage() {
 
         <aside className="space-y-4">
           <section className="island-shell rounded-2xl p-4">
+            <h2 className="mb-2 text-sm font-semibold text-[var(--sea-ink)]">Project</h2>
+            <select
+              className="mb-2 w-full rounded-lg border border-[rgba(23,58,64,0.15)] bg-white/80 px-3 py-2 text-sm"
+              value={projectId}
+              onChange={(e) => void handleProjectChange(e.target.value)}
+              disabled={needsKey || state.isStreaming}
+            >
+              <option value="">New session (greenfield)</option>
+              {projectsQuery.data?.projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name} ({project.mode})
+                </option>
+              ))}
+            </select>
+            <p className="m-0 text-xs text-[var(--sea-ink-soft)]">
+              Continue mode uses the project workspace and injects agent-visible notes.
+            </p>
+          </section>
+
+          <section className="island-shell rounded-2xl p-4">
             <h2 className="mb-2 text-sm font-semibold text-[var(--sea-ink)]">Session</h2>
             <p className="m-0 break-all text-xs text-[var(--sea-ink-soft)]">
               {sessionId ?? 'Creating session…'}
             </p>
+            {projectName ? (
+              <p className="mt-2 text-xs font-medium text-[var(--sea-ink)]">{projectName}</p>
+            ) : null}
             <p className="mt-2 text-xs text-[var(--sea-ink-soft)]">
-              Workspace: <code>~/.aris/sessions/{'{id}'}/</code>
+              Workspace:{' '}
+              <code className="break-all">{workspacePath ?? `~/.aris/sessions/{id}/`}</code>
             </p>
           </section>
 

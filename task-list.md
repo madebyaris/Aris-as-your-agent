@@ -119,16 +119,15 @@
 
 - [x] `@aris/projects` — registry types + CRUD stubs
 - [x] `/projects` UI shell — list, create project, notes, servers
-- [ ] Chat: pick project → `mode: continue` → load `workspacePath`
-- [ ] Link session to `projectId` on each run
+- [x] Chat: pick project → `mode: continue` → load `workspacePath`
+- [x] Link session to `projectId` on each run
 - [ ] Feature tags on project (e.g. `billing`, `auth`)
 
 ### Notes (private vs agent)
 
 - [x] `@aris/notes` — visibility model + CRUD stubs
-- [ ] Notes panel in chat or `/projects/$id`
-- [ ] Toggle: **Private** (user only) vs **Agent can read**
-- [ ] Inject `listAgentVisibleNotes()` into `buildArisPrompt()`
+- [x] Notes UI on `/projects` with private / agent toggle
+- [x] Inject `listAgentVisibleNotes()` into `buildArisPrompt()` in chat flow
 - [ ] Verify private notes never appear in agent stream
 
 ---
@@ -141,6 +140,7 @@
 - [x] `beginServerTaskSafely()` — note + backup manifest before execute
 - [x] `assertBackupBeforeExecute()` gate
 - [ ] UI: register server (label, host/IP, port, username, password or key)
+- [x] Register server form on `/projects`
 - [ ] Phase 2: encrypt secrets at rest
 - [ ] Phase 2: real SSH via `ssh2` — connect, run read-only inspect
 

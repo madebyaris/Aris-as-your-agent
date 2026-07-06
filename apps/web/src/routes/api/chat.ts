@@ -1,5 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { streamArisResponse } from '@aris/agent'
+import {
+  formatNotesForAgentContext,
+  listAgentVisibleNotes,
+} from '@aris/notes'
+import { getProject, touchProject } from '@aris/projects'
 import { readSettings } from '@aris/workspace'
 
 export const Route = createFileRoute('/api/chat')({
@@ -9,6 +14,7 @@ export const Route = createFileRoute('/api/chat')({
         const body = (await request.json()) as {
           sessionId?: string
           message?: string
+          projectId?: string
         }
 
         if (!body.sessionId || !body.message?.trim()) {
@@ -23,7 +29,21 @@ export const Route = createFileRoute('/api/chat')({
           settings.cursorApiKey?.trim() ?? process.env.CURSOR_API_KEY?.trim()
 
         const { getSessionWorkspacePath } = await import('@aris/workspace')
-        const workspacePath = await getSessionWorkspacePath(body.sessionId)
+
+        let workspacePath = await getSessionWorkspacePath(body.sessionId)
+        let projectMode: string | undefined
+        let agentNotes: string | undefined
+
+        if (body.projectId) {
+          const project = await getProject(body.projectId)
+          if (project) {
+            workspacePath = project.workspacePath
+            projectMode = project.mode
+            await touchProject(project.id, { lastSessionId: body.sessionId })
+            const notes = await listAgentVisibleNotes({ projectId: project.id })
+            agentNotes = formatNotesForAgentContext(notes)
+          }
+        }
 
         const stream = new ReadableStream({
           async start(controller) {
@@ -42,6 +62,8 @@ export const Route = createFileRoute('/api/chat')({
                 workspacePath,
                 userMessage: body.message!.trim(),
                 model: settings.defaultModel,
+                projectMode,
+                agentNotes,
                 emit: (event) => send(event.type, event),
               })
             } catch (error) {

@@ -6,9 +6,14 @@ import {
 } from '@aris/workspace'
 import { validateApiKey } from '@aris/agent'
 import { createDefaultTaskGraph } from '@aris/tasks'
+import { mkdir } from 'node:fs/promises'
+import { join } from 'node:path'
+import { homedir } from 'node:os'
 import {
   createProject,
+  getProject,
   readProjectsRegistry,
+  touchProject,
   type ProjectMode,
 } from '@aris/projects'
 import {
@@ -62,12 +67,29 @@ export const saveApiKey = createServerFn({ method: 'POST' })
     return { ok: true }
   })
 
-export const createSession = createServerFn({ method: 'POST' }).handler(
-  async () => {
+export const createSession = createServerFn({ method: 'POST' })
+  .validator((data: { projectId?: string }) => data ?? {})
+  .handler(async ({ data }) => {
+    if (data?.projectId) {
+      const project = await getProject(data.projectId)
+      if (!project) throw new Error('Project not found.')
+      const { randomUUID } = await import('node:crypto')
+      const sessionId = randomUUID()
+      await mkdir(join(project.workspacePath, 'specs', 'active'), { recursive: true })
+      await touchProject(project.id, { lastSessionId: sessionId })
+      return {
+        sessionId,
+        path: project.workspacePath,
+        projectId: project.id,
+        projectName: project.name,
+        projectMode: project.mode,
+        createdAt: new Date().toISOString(),
+      }
+    }
+
     const workspace = await createSessionWorkspace()
-    return workspace
-  },
-)
+    return { ...workspace, projectId: undefined, projectName: undefined, projectMode: undefined }
+  })
 
 export const bootstrapSessionTasks = createServerFn({ method: 'POST' })
   .validator((data: { prompt: string }) => data)
@@ -151,6 +173,54 @@ export const registerServerFn = createServerFn({ method: 'POST' })
     }) => data,
   )
   .handler(async ({ data }) => registerServer(data))
+
+/** Seed ~/.aris with demo project, agent note, and settings for local screenshots. */
+export const seedDemoData = createServerFn({ method: 'POST' }).handler(async () => {
+  const demoRoot = join(homedir(), '.aris', 'demo', 'specialty-coffee')
+  await mkdir(join(demoRoot, 'specs', 'active'), { recursive: true })
+
+  const registry = await readProjectsRegistry()
+  let project = registry.projects.find((p) => p.name === 'Specialty Coffee Site')
+
+  if (!project) {
+    project = await createProject({
+      name: 'Specialty Coffee Site',
+      workspacePath: demoRoot,
+      mode: 'continue',
+      description: 'Demo project for Aris — continue adding features over time.',
+    })
+  }
+
+  const notes = await readNotesRegistry()
+  const hasAgentNote = notes.notes.some(
+    (n) => n.projectId === project!.id && n.visibility === 'agent',
+  )
+
+  if (!hasAgentNote) {
+    await createNote({
+      title: 'Brand direction',
+      body: 'Warm earth tones, single-origin focus, hero with brewing methods. Avoid stock photos.',
+      visibility: 'agent',
+      projectId: project.id,
+      tags: ['design', 'brand'],
+    })
+  }
+
+  const existing = await readSettings()
+  if (!existing.cursorApiKey?.trim()) {
+    await writeSettings({
+      ...existing,
+      cursorApiKey: 'demo_key_for_local_screenshots',
+      defaultModel: 'composer-2.5',
+    })
+  }
+
+  return {
+    ok: true,
+    projectId: project.id,
+    workspacePath: project.workspacePath,
+  }
+})
 
 export const beginServerTaskFn = createServerFn({ method: 'POST' })
   .validator(

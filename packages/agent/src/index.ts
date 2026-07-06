@@ -66,9 +66,12 @@ export async function streamArisResponse(options: {
   workspacePath: string
   userMessage: string
   model?: string
+  projectMode?: string
+  agentNotes?: string
   emit: StreamEmitter
 }) {
-  const { apiKey, workspacePath, userMessage, model, emit } = options
+  const { apiKey, workspacePath, userMessage, model, projectMode, agentNotes, emit } =
+    options
 
   if (!apiKey?.trim()) {
     emit({ type: "error", message: "CURSOR_API_KEY is required." })
@@ -81,7 +84,9 @@ export async function streamArisResponse(options: {
   try {
     await validateApiKey(apiKey)
     agent = await createArisAgent({ apiKey, workspacePath, model })
-    const run = await agent.send(buildArisPrompt(userMessage, workspacePath))
+    const run = await agent.send(
+      buildArisPrompt(userMessage, workspacePath, { agentNotes, projectMode }),
+    )
 
     for await (const event of run.stream()) {
       if (event.type === "assistant") {
