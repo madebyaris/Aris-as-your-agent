@@ -13,6 +13,9 @@ const arisPackages = [
   '@aris/tasks',
   '@aris/workspace',
   '@aris/research',
+  '@aris/projects',
+  '@aris/notes',
+  '@aris/server',
 ]
 
 const config = defineConfig({

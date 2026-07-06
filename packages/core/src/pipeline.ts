@@ -8,6 +8,11 @@ export type PipelinePhase =
   | "build"
   | "verify"
 
+/** Where work happens — local codebase vs remote SSH server. */
+export type WorkSurface = "local" | "server"
+
+export type ProjectMode = "greenfield" | "continue"
+
 export const PIPELINE_PHASES: PipelinePhase[] = [
   "intake",
   "research",
@@ -33,10 +38,15 @@ export type ArisTask = {
 
 export type PipelineContext = {
   sessionId: string
+  projectId?: string
   workspacePath: string
   userPrompt: string
   phase: PipelinePhase
   tasks: ArisTask[]
+  /** continue = enhance existing project; greenfield = new build */
+  projectMode: ProjectMode
+  workSurface: WorkSurface
+  serverId?: string
 }
 
 export type PipelineEvent =
@@ -53,6 +63,10 @@ export type PipelineOptions = {
   workspacePath: string
   userPrompt: string
   emit: PipelineEmitter
+  projectId?: string
+  projectMode?: ProjectMode
+  workSurface?: WorkSurface
+  serverId?: string
   /** When true, skip research (not recommended — Aris always researches by default). */
   skipResearch?: boolean
 }
@@ -64,10 +78,14 @@ export type PipelineOptions = {
 export async function createPipeline(options: PipelineOptions) {
   const ctx: PipelineContext = {
     sessionId: options.sessionId,
+    projectId: options.projectId,
     workspacePath: options.workspacePath,
     userPrompt: options.userPrompt,
     phase: "intake",
     tasks: [],
+    projectMode: options.projectMode ?? "continue",
+    workSurface: options.workSurface ?? "local",
+    serverId: options.serverId,
   }
 
   async function runPhase(phase: PipelinePhase) {

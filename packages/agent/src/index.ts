@@ -36,15 +36,25 @@ export async function createArisAgent(options: CreateArisAgentOptions) {
   })
 }
 
-export function buildArisPrompt(userMessage: string, workspacePath: string) {
+export function buildArisPrompt(
+  userMessage: string,
+  workspacePath: string,
+  extras?: { agentNotes?: string; projectMode?: string },
+) {
   return [
     ARIS_SYSTEM_PREFIX,
     "",
     `Workspace: ${workspacePath}`,
+    extras?.projectMode
+      ? `Project mode: ${extras.projectMode} (software never finishes — enhance, don't restart unless asked)`
+      : "",
+    extras?.agentNotes ? `\n${extras.agentNotes}` : "",
     "",
     "User request:",
     userMessage,
-  ].join("\n")
+  ]
+    .filter(Boolean)
+    .join("\n")
 }
 
 /**

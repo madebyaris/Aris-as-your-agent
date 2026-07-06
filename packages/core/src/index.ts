@@ -7,5 +7,7 @@ export {
   type PipelineEvent,
   type PipelineOptions,
   type PipelinePhase,
+  type ProjectMode,
   type TaskPriority,
+  type WorkSurface,
 } from "./pipeline"

@@ -24,23 +24,21 @@ function HomePage() {
           >
             Open Chat →
           </Link>
-          <a
-            href="https://github.com/madebyaris/Aris-as-your-agent"
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            to="/projects"
             className="rounded-full border border-[rgba(23,58,64,0.2)] bg-white/50 px-5 py-2.5 text-sm font-semibold text-[var(--sea-ink)] no-underline transition hover:-translate-y-0.5"
           >
-            GitHub
-          </a>
+            Projects & servers
+          </Link>
         </div>
       </section>
 
       <section className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           ['Research first', 'Competitors, patterns, assets — before any code.'],
-          ['Local SDK', 'Builds in ~/.aris/sessions/ on your machine.'],
-          ['TanStack stack', 'Start, Router, Query, Store — lightweight.'],
-          ['Continue anywhere', 'PRD.md + task-list.md for handoff.'],
+          ['Never finished', 'Continue projects — add features session after session.'],
+          ['Server-safe', 'SSH tasks: document, backup, then change. Revert if wrong.'],
+          ['Your notes', 'Private notes stay yours; agent notes Aris can read.'],
         ].map(([title, desc], index) => (
           <article
             key={title}

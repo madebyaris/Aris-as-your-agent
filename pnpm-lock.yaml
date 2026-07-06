@@ -16,6 +16,15 @@ importers:
       '@aris/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@aris/notes':
+        specifier: workspace:*
+        version: link:../../packages/notes
+      '@aris/projects':
+        specifier: workspace:*
+        version: link:../../packages/projects
+      '@aris/server':
+        specifier: workspace:*
+        version: link:../../packages/server
       '@aris/stream':
         specifier: workspace:*
         version: link:../../packages/stream
@@ -136,11 +145,53 @@ importers:
         specifier: ^6.0.2
         version: 6.0.3
 
+  packages/notes:
+    dependencies:
+      '@aris/workspace':
+        specifier: workspace:*
+        version: link:../workspace
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.0
+      typescript:
+        specifier: ^6.0.2
+        version: 6.0.3
+
+  packages/projects:
+    dependencies:
+      '@aris/workspace':
+        specifier: workspace:*
+        version: link:../workspace
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.0
+      typescript:
+        specifier: ^6.0.2
+        version: 6.0.3
+
   packages/research:
     dependencies:
       '@aris/core':
         specifier: workspace:*
         version: link:../core
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.2
+        version: 22.20.0
+      typescript:
+        specifier: ^6.0.2
+        version: 6.0.3
+
+  packages/server:
+    dependencies:
+      '@aris/notes':
+        specifier: workspace:*
+        version: link:../notes
+      '@aris/workspace':
+        specifier: workspace:*
+        version: link:../workspace
     devDependencies:
       '@types/node':
         specifier: ^22.10.2

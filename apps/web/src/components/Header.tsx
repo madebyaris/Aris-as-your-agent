@@ -30,6 +30,13 @@ export default function Header() {
           >
             Chat
           </Link>
+          <Link
+            to="/projects"
+            className="nav-link"
+            activeProps={{ className: 'nav-link is-active' }}
+          >
+            Projects
+          </Link>
           <a
             href="https://madebyaris.com"
             className="nav-link"

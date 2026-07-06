@@ -1,6 +1,6 @@
 # Aris-as-your-agent
 
-Local-first senior developer agent powered by the [Cursor SDK](https://cursor.com/docs/api/sdk/typescript).
+Local-first senior developer agent — **software never finishes**. Continue projects, connect servers (SSH), save private or agent-visible notes. Powered by Cursor SDK + TanStack Start.
 
 **Stack:** TanStack Start + Vite (not Next.js) · headless `@aris/*` packages · local `cwd` workspaces
 
@@ -26,9 +26,9 @@ pnpm dev               # → http://localhost:3000
 ## Monorepo
 
 ```
-packages/     @aris/core, @aris/agent, @aris/workspace, …
-apps/web      TanStack Start UI
-.cursor/      Aris persona (skills + subagents)
+packages/     @aris/core, agent, workspace, projects, notes, server, …
+apps/web      TanStack Start UI — /chat, /projects
+.cursor/      Aris persona + server-safety skill
 ```
 
 ## Requirements

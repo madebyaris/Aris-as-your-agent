@@ -8,6 +8,10 @@ dist
 # Aris local data (never commit)
 .aris/
 
+# SSH secrets and backups (always under .aris/ but explicit)
+**/.aris/secrets/
+**/.aris/backups/
+
 # OS
 .DS_Store
 Thumbs.db

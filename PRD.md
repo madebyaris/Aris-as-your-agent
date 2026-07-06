@@ -20,16 +20,25 @@ Most AI coding tools jump straight to code. A senior developer does not. They re
 
 > *"Imagine if I'm your all-around developer — battle-tested with 13 years of experience and companies across the globe."*
 
-Users open a lightweight web app, paste a Cursor API key, and describe what they want — e.g. *"Build me a website about specialty coffee."* Aris:
+> **Philosophy: Software never finishes.** Products are living systems — Aris doesn't only scaffold a one-off app; Aris **continues** your project, feature by feature, session after session.
 
-1. Researches the domain (competitors, patterns, assets needed)
-2. Writes a brief and prioritized task list
-3. Delegates to subagents where appropriate
-4. Builds locally in an isolated session workspace
-5. Streams progress live (thinking, tool calls, edits)
-6. Shows a live preview of the result
+Users open a lightweight web app and work with Aris across three surfaces:
 
-No cloud VM required for v1. No git worktree required. Worktrees are an optional power-user feature.
+| Surface | What it means |
+|---------|----------------|
+| **Local codebase** | Continue or start a project in `cwd` / session workspace |
+| **Remote server (SSH)** | User provides host, IP, username, key/password — Aris connects to enhance or fix production |
+| **Notes** | User saves context; chooses **private** (human only) or **agent** (Aris can read) |
+
+### Example flows
+
+**Greenfield:** *"Build me a website about specialty coffee"* → research → tasks → build.
+
+**Continue feature:** *"Add Stripe billing to the project we started last week"* → load project registry → research delta → prioritized tasks → implement in existing `workspacePath`.
+
+**Server task:** *"Update nginx config on 203.0.113.10"* → connect SSH → **document state** → **backup** → pre-change note → execute → verify (rollback if wrong).
+
+No cloud VM required for v1. Git worktrees remain optional.
 
 ---
 
@@ -38,11 +47,14 @@ No cloud VM required for v1. No git worktree required. Worktrees are an optional
 | Goal | Metric |
 |------|--------|
 | Feel like a senior dev | Research phase runs before any code for every new request |
+| **Living products** | Projects persist; users continue features across sessions |
+| **Safe server ops** | 100% of server mutations preceded by backup + pre-change note |
+| **User-owned context** | Notes with explicit private vs agent visibility |
 | Lightweight stack | TanStack + Vite; no Next.js |
 | Local-first | `@cursor/sdk` `local: { cwd }` — build on user's machine |
 | Portable work | `PRD.md` + `task-list.md` let anyone continue on desktop or elsewhere |
 | Composable architecture | TanStack-style headless packages; UI is a thin adapter |
-| Extensible later | GitHub Issues, Trello, Notion as optional connectors (not v1) |
+| Extensible later | GitHub Issues, Trello, Notion as optional connectors |
 
 ---
 
@@ -54,6 +66,8 @@ No cloud VM required for v1. No git worktree required. Worktrees are an optional
 - Kanban board UI (Phase 2)
 - Multi-user auth / hosted SaaS
 - Mobile app
+- **Full SSH execution** (v1 stubs registry + backup gate; real SSH in Phase 2)
+- **Encrypted secrets at rest** (v1: local files mode 0600; encryption in Phase 2)
 
 ---
 
@@ -87,8 +101,11 @@ aris-as-your-agent/
 │   ├── agent/                @aris/agent     — Cursor SDK wrapper (local default)
 │   ├── workspace/            @aris/workspace — session folders (~/.aris/sessions/)
 │   ├── stream/               @aris/stream    — SDKMessage → typed UI events
-│   ├── research/             @aris/research  — research phase (stub → full)
-│   └── tasks/                @aris/tasks     — task graph, priority (stub → full)
+│   ├── research/             @aris/research  — research phase
+│   ├── tasks/                @aris/tasks     — task graph, priority
+│   ├── projects/             @aris/projects  — living project registry (continue vs greenfield)
+│   ├── notes/                @aris/notes     — private vs agent-visible notes
+│   └── server/               @aris/server    — SSH targets, backup-before-mutate gate
 ├── apps/
 │   └── web/                  TanStack Start + Vite (NOT Next.js)
 └── .cursor/                  Aris persona — skills, agents, rules
@@ -111,25 +128,51 @@ aris-as-your-agent/
 
 ---
 
-## 7. Core User Flow
+## 7. Core User Flows
+
+### 7a. Continue a project (default)
 
 ```
-┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  Onboarding │ ──► │  Chat / Prompt   │ ──► │  Research phase │
-│  (API key)  │     │  "Build me X"    │     │  (streamed)     │
-└─────────────┘     └──────────────────┘     └────────┬────────┘
-                                                      │
-                      ┌──────────────────┐     ┌──────▼────────┐
-                      │  Live preview    │ ◄── │  Build phase  │
-                      │  (iframe)        │     │  (local SDK)  │
-                      └──────────────────┘     └───────────────┘
+Open project → Chat "add feature X" → Research (delta) → Tasks (P0…) → Build in project workspace → Verify
+```
+
+Projects live in `~/.aris/projects.json` with `mode: "continue"` and a stable `workspacePath`.
+
+### 7b. Greenfield
+
+```
+New project → Session workspace → Research → Build → Project registered for future sessions
+```
+
+### 7c. Server task (SSH)
+
+```
+Register server (host, IP, user, key/password)
+    → Plan task
+    → Document current state
+    → Backup (required)
+    → Pre-change note (agent-visible)
+    → Execute
+    → Verify OR rollback from backup
+```
+
+**Hard rule:** `assertBackupBeforeExecute()` blocks execution if backup is missing.
+
+### 7d. Notes
+
+```
+User writes note → visibility: private | agent
+    → private: UI only, never in agent prompt
+    → agent: injected via listAgentVisibleNotes() for project/server context
 ```
 
 ### Session workspace
 
 - Default: `~/.aris/sessions/{uuid}/` — isolated folder per session
-- Optional: user-provided existing project path as `cwd`
+- **Continue:** point `workspacePath` at existing repo on disk
 - Optional (later): git worktree for branch isolation
+
+---
 
 ### Minimum SDK config
 
@@ -190,24 +233,25 @@ Injected via `.cursor/skills/senior-developer/SKILL.md` and system prompt in `@a
 
 ## 10. Web App (apps/web)
 
-### Routes (planned)
+### Routes
 
 | Route | Purpose |
 |-------|---------|
 | `/` | Landing + onboarding (API key) |
 | `/chat` | Main chat interface |
-| `/chat/$sessionId` | Resumed session |
-| `/api/chat` | SSE — stream agent events (server route) |
-| `/api/health` | Health check |
+| `/projects` | Project list — continue or create |
+| `/api/chat` | SSE — stream agent events |
 
-### Server functions (planned)
+### Server functions
 
 | Function | Purpose |
 |----------|---------|
 | `createSession` | New session + workspace folder |
 | `saveApiKey` | Persist to `~/.aris/settings.json` |
-| `getSession` | Session metadata |
-| `listModels` | `Cursor.models.list()` |
+| `listProjects` / `createProject` | Living project registry |
+| `listNotes` / `createNote` / `updateNote` | Notes with visibility |
+| `listServers` / `registerServer` | SSH target registry |
+| `beginServerTask` | Backup + pre-change note gate |
 
 ### UI panels
 
@@ -216,8 +260,9 @@ Injected via `.cursor/skills/senior-developer/SKILL.md` and system prompt in `@a
 | Chat messages | TanStack Virtual |
 | Streaming text | TanStack Store |
 | Tasks / phases | TanStack Query |
+| Projects & notes | TanStack Query + Form |
+| Server registry | TanStack Form (credentials server-side only) |
 | Preview | `<iframe>` → session Vite dev server |
-| API key form | TanStack Form |
 
 ---
 
@@ -225,73 +270,78 @@ Injected via `.cursor/skills/senior-developer/SKILL.md` and system prompt in `@a
 
 | Data | Location |
 |------|----------|
-| API key | `~/.aris/settings.json` (local only, never commit) |
+| API key | `~/.aris/settings.json` |
+| **Projects** | `~/.aris/projects.json` |
+| **Notes** | `~/.aris/notes.json` |
+| **Servers (metadata)** | `~/.aris/servers.json` |
+| **SSH secrets** | `~/.aris/secrets/servers/*` (mode 0600, never commit) |
+| **Server backups** | `~/.aris/backups/servers/{serverId}/{backupId}/` |
 | Session workspaces | `~/.aris/sessions/{id}/` |
 | Agent persistence | Cursor SDK SQLite (automatic) |
-| Spec outputs | `specs/active/{session-id}/` in workspace |
-| Project docs | `PRD.md`, `task-list.md` in repo (version controlled) |
+| Spec outputs | `specs/active/` in project workspace |
+| Project docs | `PRD.md`, `task-list.md` in repo |
+
+### Note visibility
+
+| Value | User | Agent |
+|-------|------|-------|
+| `private` | ✅ read/write | ❌ never injected |
+| `agent` | ✅ read/write | ✅ included in context |
 
 ---
 
-## 12. Security (v1 — local demo)
+## 12. Security
 
-- API key stored server-side only (never sent to browser after save)
+- API key + SSH secrets: server-side only, never commit
 - SDK runs in Node server process, not client
+- Server mutations require backup record (`backupRequired: true`)
+- Private notes excluded from `formatNotesForAgentContext()`
+- v1: local files; Phase 2: encryption at rest for secrets
 - No public deployment without auth + per-user storage
-- Sandbox off by default (local dev tool); document risks
 
 ---
 
 ## 13. Phased Roadmap
 
-### Phase 0 — Scaffold ✅ (this PR)
+### Phase 0 — Scaffold ✅
 
-- [x] Monorepo + TanStack Start app
-- [x] Headless packages (stubs with types)
-- [x] PRD.md + task-list.md
-- [x] Basic Aris landing UI
-- [x] `.cursor/skills/senior-developer`
+### Phase 1 — MVP (local agent)
 
-### Phase 1 — MVP
+- API key, chat SSE, research-first pipeline, preview iframe
 
-- [ ] API key onboarding + session create
-- [ ] SSE chat route wired to `@aris/agent`
-- [ ] Research-first pipeline (Phase 1 always runs)
-- [ ] Stream assistant text + tool calls to UI
-- [ ] Session workspace scaffold (Vite template)
-- [ ] Preview iframe
+### Phase 1.5 — Living projects & notes
 
-### Phase 2 — Task board + polish
+- [ ] Project registry UI (`/projects`)
+- [ ] Continue existing project from chat
+- [ ] Notes UI with private / agent toggle
+- [ ] Inject agent-visible notes into `buildArisPrompt()`
 
-- [ ] Kanban UI (`@aris/tasks`)
-- [ ] Phase progress indicator
-- [ ] Subagent delegation visible in UI
-- [ ] Session resume across restarts
+### Phase 2 — Server access
 
-### Phase 3 — Connectors
+- [ ] SSH connect via `ssh2` or MCP shell
+- [ ] Real backup capture (configs, DB dump hooks)
+- [ ] Rollback workflow
+- [ ] Server task UI + backup manifest viewer
 
-- [ ] `@aris/connector-github` — Issues as intake
-- [ ] `@aris/connector-trello`
-- [ ] `@aris/connector-notion`
+### Phase 3 — Task board + connectors
+
+- Kanban, GitHub Issues, Trello, Notion
 
 ### Phase 4 — Power features
 
-- [ ] Optional git worktree (`@aris/workspace`)
-- [ ] CLI (`apps/cli`) aligned with native-cli-ai
-- [ ] Cloud runtime option
+- Git worktree, CLI, optional cloud runtime
 
 ---
 
 ## 14. Success Criteria
 
-**Phase 1 done when:**
+**Phase 1.5 done when:**
 
-1. User can paste API key, send *"Build me a website about coffee"*
-2. Research streams before any file is created
-3. Task list appears with priorities
-4. Agent builds in `~/.aris/sessions/{id}/`
-5. Preview loads in iframe
-6. `task-list.md` reflects completed work for handoff
+1. User creates a project and returns later to *"add feature X"*
+2. User saves a **private** note — agent does not reference it
+3. User saves an **agent** note — Aris cites it in the next run
+4. User registers a server (host, IP, user, credential)
+5. Server task is blocked until backup + pre-change note exist
 
 ---
 
@@ -305,4 +355,4 @@ Injected via `.cursor/skills/senior-developer/SKILL.md` and system prompt in `@a
 
 ---
 
-*Last updated: 2026-07-06 — Phase 0 scaffold*
+*Last updated: 2026-07-06 — Phase 0 + living projects / server / notes architecture*
