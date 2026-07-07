@@ -1,0 +1,27 @@
+node_modules
+dist
+.turbo
+.env
+.env.local
+*.local
+
+# Aris local data (never commit)
+.aris/
+
+# SSH secrets and backups (always under .aris/ but explicit)
+**/.aris/secrets/
+**/.aris/backups/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# IDE
+.idea
+.vscode/*
+!.vscode/extensions.json
