@@ -1,11 +1,20 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises"
-import { homedir } from "node:os"
 import { join } from "node:path"
 import { randomUUID } from "node:crypto"
+import {
+  ARIS_SESSIONS_DIR,
+  ARIS_SETTINGS_PATH,
+  ensureArisHome,
+} from "./paths.js"
 
-export const ARIS_HOME = join(homedir(), ".aris")
-export const ARIS_SESSIONS_DIR = join(ARIS_HOME, "sessions")
-export const ARIS_SETTINGS_PATH = join(ARIS_HOME, "settings.json")
+export {
+  ARIS_HOME,
+  ARIS_SESSIONS_DIR,
+  ARIS_SETTINGS_PATH,
+  SESSIONS_REGISTRY_PATH,
+  TRANSCRIPTS_DIR,
+  ensureArisHome,
+} from "./paths.js"
 
 export type ArisSettings = {
   cursorApiKey?: string
@@ -16,11 +25,6 @@ export type SessionWorkspace = {
   sessionId: string
   path: string
   createdAt: string
-}
-
-export async function ensureArisHome() {
-  await mkdir(ARIS_HOME, { recursive: true })
-  await mkdir(ARIS_SESSIONS_DIR, { recursive: true })
 }
 
 export async function readSettings(): Promise<ArisSettings> {
@@ -46,6 +50,7 @@ export async function createSessionWorkspace(sessionId = randomUUID()): Promise<
   const path = join(ARIS_SESSIONS_DIR, sessionId)
   await mkdir(path, { recursive: true })
   await mkdir(join(path, "specs", "active"), { recursive: true })
+  await mkdir(join(path, ".aris"), { recursive: true })
 
   return {
     sessionId,
@@ -57,3 +62,6 @@ export async function createSessionWorkspace(sessionId = randomUUID()): Promise<
 export async function getSessionWorkspacePath(sessionId: string) {
   return join(ARIS_SESSIONS_DIR, sessionId)
 }
+
+export * from "./sessions.js"
+export * from "./project-state.js"

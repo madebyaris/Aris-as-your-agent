@@ -3,6 +3,10 @@ import {
   createSessionWorkspace,
   readSettings,
   writeSettings,
+  resumeOrCreateSession,
+  getTranscript,
+  ensureProjectState,
+  createWorkSession,
 } from '@aris/workspace'
 import { validateApiKey } from '@aris/agent'
 import { createDefaultTaskGraph } from '@aris/tasks'
@@ -73,28 +77,83 @@ export const createSession = createServerFn({ method: 'POST' })
     if (data?.projectId) {
       const project = await getProject(data.projectId)
       if (!project) throw new Error('Project not found.')
-      const { randomUUID } = await import('node:crypto')
-      const sessionId = randomUUID()
+
       await mkdir(join(project.workspacePath, 'specs', 'active'), { recursive: true })
-      await touchProject(project.id, { lastSessionId: sessionId })
+      await ensureProjectState(project.workspacePath, project.mode)
+
+      const { session, resumed } = await resumeOrCreateSession({
+        workspacePath: project.workspacePath,
+        projectId: project.id,
+        title: project.name,
+      })
+
+      await touchProject(project.id, { lastSessionId: session.id })
+
+      const transcript = await getTranscript(session.id)
+
       return {
-        sessionId,
-        path: project.workspacePath,
+        sessionId: session.id,
+        path: session.workspacePath,
         projectId: project.id,
         projectName: project.name,
         projectMode: project.mode,
-        createdAt: new Date().toISOString(),
+        resumed,
+        transcript,
+        createdAt: session.createdAt,
       }
     }
 
     const workspace = await createSessionWorkspace()
-    return { ...workspace, projectId: undefined, projectName: undefined, projectMode: undefined }
+    const session = await createWorkSession({
+      workspacePath: workspace.path,
+      title: 'Greenfield session',
+    })
+    await ensureProjectState(workspace.path, 'greenfield')
+
+    return {
+      sessionId: session.id,
+      path: workspace.path,
+      projectId: undefined,
+      projectName: undefined,
+      projectMode: 'greenfield' as const,
+      resumed: false,
+      transcript: [],
+      createdAt: session.createdAt,
+    }
   })
+
+export const getSessionTranscriptFn = createServerFn({ method: 'POST' })
+  .validator((data: { sessionId: string }) => data)
+  .handler(async ({ data }) => getTranscript(data.sessionId))
 
 export const bootstrapSessionTasks = createServerFn({ method: 'POST' })
   .validator((data: { prompt: string }) => data)
   .handler(async ({ data }) => {
     return createDefaultTaskGraph(data.prompt)
+  })
+
+/**
+ * Load durable continuity for a project/session (for UI hydration).
+ */
+export const getContinuityBundle = createServerFn({ method: 'POST' })
+  .validator((data: { projectId?: string; sessionId?: string }) => data)
+  .handler(async ({ data }) => {
+    let workspacePath: string | undefined
+    let project = null as Awaited<ReturnType<typeof getProject>>
+
+    if (data.projectId) {
+      project = await getProject(data.projectId)
+      workspacePath = project?.workspacePath
+    }
+
+    const transcript = data.sessionId ? await getTranscript(data.sessionId) : []
+    const state = workspacePath ? await ensureProjectState(workspacePath) : null
+
+    return {
+      project,
+      state,
+      transcript,
+    }
   })
 
 // --- Projects (living products) ---
@@ -112,7 +171,11 @@ export const createProjectFn = createServerFn({ method: 'POST' })
       description?: string
     }) => data,
   )
-  .handler(async ({ data }) => createProject(data))
+  .handler(async ({ data }) => {
+    const project = await createProject(data)
+    await ensureProjectState(project.workspacePath, project.mode)
+    return project
+  })
 
 // --- Notes (private vs agent) ---
 
@@ -190,6 +253,8 @@ export const seedDemoData = createServerFn({ method: 'POST' }).handler(async () 
       description: 'Demo project for Aris — continue adding features over time.',
     })
   }
+
+  await ensureProjectState(project.workspacePath, project.mode)
 
   const notes = await readNotesRegistry()
   const hasAgentNote = notes.notes.some(

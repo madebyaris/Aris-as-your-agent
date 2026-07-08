@@ -21,6 +21,7 @@ export function ProjectsPage() {
   const [noteTitle, setNoteTitle] = useState('')
   const [noteBody, setNoteBody] = useState('')
   const [noteVisibility, setNoteVisibility] = useState<'private' | 'agent'>('agent')
+  const [noteProjectId, setNoteProjectId] = useState('')
   const [serverLabel, setServerLabel] = useState('')
   const [serverHost, setServerHost] = useState('')
   const [serverUser, setServerUser] = useState('root')
@@ -49,6 +50,7 @@ export function ProjectsPage() {
           title: noteTitle,
           body: noteBody,
           visibility: noteVisibility,
+          ...(noteProjectId ? { projectId: noteProjectId } : {}),
         },
       }),
     onSuccess: () => {
@@ -170,6 +172,18 @@ export function ProjectsPage() {
             >
               <option value="private">Private — only you</option>
               <option value="agent">Agent can read</option>
+            </select>
+            <select
+              className="w-full rounded-lg border px-3 py-2 text-sm"
+              value={noteProjectId}
+              onChange={(e) => setNoteProjectId(e.target.value)}
+            >
+              <option value="">No project link</option>
+              {projectsQuery.data?.projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
             </select>
             <button
               type="button"

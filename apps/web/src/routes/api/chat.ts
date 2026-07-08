@@ -5,7 +5,16 @@ import {
   listAgentVisibleNotes,
 } from '@aris/notes'
 import { getProject, touchProject } from '@aris/projects'
-import { readSettings } from '@aris/workspace'
+import {
+  appendTranscript,
+  formatTranscriptForPrompt,
+  getSession,
+  getTranscript,
+  loadProjectContinuityContext,
+  recordSessionHandoff,
+  readSettings,
+  touchWorkSession,
+} from '@aris/workspace'
 
 export const Route = createFileRoute('/api/chat')({
   server: {
@@ -28,10 +37,14 @@ export const Route = createFileRoute('/api/chat')({
         const apiKey =
           settings.cursorApiKey?.trim() ?? process.env.CURSOR_API_KEY?.trim()
 
+        const existingSession = await getSession(body.sessionId)
         const { getSessionWorkspacePath } = await import('@aris/workspace')
-
-        let workspacePath = await getSessionWorkspacePath(body.sessionId)
-        let projectMode: string | undefined
+        let workspacePath: string =
+          existingSession?.workspacePath ??
+          (await getSessionWorkspacePath(body.sessionId))
+        let projectMode: 'greenfield' | 'continue' = existingSession?.projectId
+          ? 'continue'
+          : 'greenfield'
         let agentNotes: string | undefined
 
         if (body.projectId) {
@@ -45,6 +58,18 @@ export const Route = createFileRoute('/api/chat')({
           }
         }
 
+        const continuity = await loadProjectContinuityContext(workspacePath)
+        const priorTranscript = await getTranscript(body.sessionId)
+        const transcriptBlock = formatTranscriptForPrompt(priorTranscript)
+
+        await touchWorkSession(body.sessionId, {
+          status: 'active',
+          workspacePath,
+        })
+
+        const userMessage = body.message.trim()
+        const sessionId = body.sessionId
+
         const stream = new ReadableStream({
           async start(controller) {
             const encoder = new TextEncoder()
@@ -56,15 +81,41 @@ export const Route = createFileRoute('/api/chat')({
               )
             }
 
+            let assistantText = ''
+
             try {
               await streamArisResponse({
                 apiKey,
                 workspacePath,
-                userMessage: body.message!.trim(),
+                userMessage,
                 model: settings.defaultModel,
                 projectMode,
                 agentNotes,
-                emit: (event) => send(event.type, event),
+                continuity: continuity.promptBlock,
+                transcript: transcriptBlock,
+                emit: (event) => {
+                  if (event.type === 'assistant_delta') {
+                    assistantText += event.text
+                  }
+                  send(event.type, event)
+                },
+              })
+
+              await appendTranscript(sessionId, [
+                { role: 'user', content: userMessage },
+                ...(assistantText
+                  ? [{ role: 'assistant' as const, content: assistantText }]
+                  : []),
+              ])
+
+              await recordSessionHandoff({
+                workspacePath,
+                sessionId,
+                projectMode,
+                goalFromUser: userMessage,
+                assistantSummary: assistantText
+                  ? assistantText.slice(0, 280)
+                  : undefined,
               })
             } catch (error) {
               const message =

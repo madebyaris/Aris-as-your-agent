@@ -8,6 +8,7 @@ Local-first senior developer agent — **software never finishes**. Continue pro
 
 | File | Purpose |
 |------|---------|
+| [ENGINEERING.md](./ENGINEERING.md) | How engineers build + continue software (runtime contract) |
 | [PRD.md](./PRD.md) | Product requirements & architecture |
 | [task-list.md](./task-list.md) | Implementation checklist — update as you work |
 
@@ -15,13 +16,15 @@ Local-first senior developer agent — **software never finishes**. Continue pro
 
 ```bash
 pnpm install
-cp .env.example .env   # optional: CURSOR_API_KEY
-pnpm dev               # → http://localhost:3000
+node scripts/seed-demo.mjs   # optional demo project + STATE.md
+cp .env.example .env         # optional: CURSOR_API_KEY
+pnpm dev                     # → http://localhost:3000
 ```
 
-1. Open **Chat**
-2. Save your Cursor API key (stored in `~/.aris/settings.json`)
-3. Try: *"Build me a website about specialty coffee"*
+1. Open **Projects** — register or pick a living product
+2. Open **Chat** — sessions **resume**; transcripts + `.aris/STATE.md` survive refresh
+3. Save your Cursor API key (stored in `~/.aris/settings.json`)
+4. Continue building — Aris reads prior state before each turn
 
 ## Monorepo
 

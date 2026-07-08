@@ -39,7 +39,12 @@ export async function createArisAgent(options: CreateArisAgentOptions) {
 export function buildArisPrompt(
   userMessage: string,
   workspacePath: string,
-  extras?: { agentNotes?: string; projectMode?: string },
+  extras?: {
+    agentNotes?: string
+    projectMode?: string
+    continuity?: string
+    transcript?: string
+  },
 ) {
   return [
     ARIS_SYSTEM_PREFIX,
@@ -48,7 +53,9 @@ export function buildArisPrompt(
     extras?.projectMode
       ? `Project mode: ${extras.projectMode} (software never finishes — enhance, don't restart unless asked)`
       : "",
+    extras?.continuity ? `\n${extras.continuity}` : "",
     extras?.agentNotes ? `\n${extras.agentNotes}` : "",
+    extras?.transcript ? `\n${extras.transcript}` : "",
     "",
     "User request:",
     userMessage,
@@ -68,10 +75,21 @@ export async function streamArisResponse(options: {
   model?: string
   projectMode?: string
   agentNotes?: string
+  continuity?: string
+  transcript?: string
   emit: StreamEmitter
 }) {
-  const { apiKey, workspacePath, userMessage, model, projectMode, agentNotes, emit } =
-    options
+  const {
+    apiKey,
+    workspacePath,
+    userMessage,
+    model,
+    projectMode,
+    agentNotes,
+    continuity,
+    transcript,
+    emit,
+  } = options
 
   if (!apiKey?.trim()) {
     emit({ type: "error", message: "CURSOR_API_KEY is required." })
@@ -85,7 +103,12 @@ export async function streamArisResponse(options: {
     await validateApiKey(apiKey)
     agent = await createArisAgent({ apiKey, workspacePath, model })
     const run = await agent.send(
-      buildArisPrompt(userMessage, workspacePath, { agentNotes, projectMode }),
+      buildArisPrompt(userMessage, workspacePath, {
+        agentNotes,
+        projectMode,
+        continuity,
+        transcript,
+      }),
     )
 
     for await (const event of run.stream()) {

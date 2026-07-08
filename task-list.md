@@ -113,6 +113,24 @@
 
 ---
 
+## Phase Continuity — Engineering fundamentals (priority)
+
+> **Contract:** [ENGINEERING.md](./ENGINEERING.md) — if runtime disagrees, fix code.
+
+- [x] Diagnose chat-only vs engineering continuity gap
+- [x] Durable `~/.aris/sessions.json` + `resumeOrCreateSession()`
+- [x] Transcript persistence `~/.aris/transcripts/{sessionId}.jsonl`
+- [x] Project handoff `{workspace}/.aris/state.json` + `STATE.md`
+- [x] Chat loads continuity + transcript into `buildArisPrompt()`
+- [x] Chat writes handoff after each turn
+- [x] UI hydrates transcript on resume
+- [x] Notes form can bind `projectId`
+- [ ] Automated test: private notes never in prompt
+- [ ] `Agent.resume()` with `cursorAgentId` (SDK)
+- [ ] Full pipeline (research → tasks) on chat path (not just stubs)
+
+---
+
 ## Phase 1.5 — Living projects & notes
 
 ### Projects (software never finishes)
@@ -128,6 +146,7 @@
 - [x] `@aris/notes` — visibility model + CRUD stubs
 - [x] Notes UI on `/projects` with private / agent toggle
 - [x] Inject `listAgentVisibleNotes()` into `buildArisPrompt()` in chat flow
+- [x] Notes can bind to a project from UI
 - [ ] Verify private notes never appear in agent stream
 
 ---
@@ -189,12 +208,14 @@
 |------|---------|-------|
 | 2026-07-06 | Cloud agent | Phase 0 scaffold. Added projects, notes, server packages + PRD philosophy. |
 | 2026-07-06 | Cloud agent | Next: Phase 1 chat + Phase 1.5 projects/notes UI. |
+| 2026-07-08 | Cloud agent | Added ENGINEERING.md + durable sessions/transcripts/project STATE handoff. |
 
 ### Quick resume commands
 
 ```bash
 git checkout cursor/tanstack-scaffold-6200
 pnpm install
+node scripts/seed-demo.mjs
 pnpm dev          # → http://localhost:3000
 cp .env.example .env   # add CURSOR_API_KEY
 ```
@@ -203,16 +224,19 @@ cp .env.example .env   # add CURSOR_API_KEY
 
 | File | Why |
 |------|-----|
+| `ENGINEERING.md` | How engineers build + continue software (contract) |
 | `PRD.md` | Full product context |
+| `packages/workspace/src/sessions.ts` | Durable sessions + transcripts |
+| `packages/workspace/src/project-state.ts` | Rolling project handoff |
 | `packages/core/src/pipeline.ts` | Phase orchestration |
 | `packages/server/src/index.ts` | SSH + backup gate |
 | `packages/notes/src/index.ts` | Note visibility |
 | `packages/projects/src/index.ts` | Continue-project registry |
 | `.cursor/skills/server-safety/SKILL.md` | Server mutation rules |
-| `apps/web/src/routes/api/chat.ts` | SSE endpoint |
-| `apps/web/src/routes/chat.tsx` | Main UI |
+| `apps/web/src/routes/api/chat.ts` | SSE endpoint (continuity wired) |
+| `apps/web/src/components/ChatPage.tsx` | Main UI + resume hydration |
 | `.cursor/skills/senior-developer/SKILL.md` | Aris persona |
 
 ---
 
-*Last updated: 2026-07-06 — living projects, notes, server safety*
+*Last updated: 2026-07-08 — continuity fundamentals*

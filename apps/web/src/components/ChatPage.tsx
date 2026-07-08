@@ -56,6 +56,8 @@ export function ChatPage() {
     enabled: settingsQuery.data?.hasApiKey === true,
   })
 
+  const [resumed, setResumed] = useState(false)
+
   const sessionMutation = useMutation({
     mutationFn: async (selectedProjectId?: string) => {
       const session = await createSession({
@@ -64,7 +66,24 @@ export function ChatPage() {
       setSessionId(session.sessionId)
       setWorkspacePath(session.path)
       setProjectName(session.projectName ?? null)
+      setResumed(Boolean(session.resumed))
       if (session.projectId) setProjectId(session.projectId)
+
+      const hydrated =
+        session.transcript?.map((m) => ({
+          id: m.id,
+          role: m.role as ChatMessage['role'],
+          content: m.content,
+        })) ?? []
+
+      store.setState((s) => ({
+        ...s,
+        messages: hydrated,
+        streamingText: '',
+        activity: [],
+        isStreaming: false,
+      }))
+
       return session
     },
   })
@@ -244,8 +263,9 @@ export function ChatPage() {
           <div className="mb-3 flex-1 space-y-3 overflow-y-auto pr-1">
             {state.messages.length === 0 ? (
               <p className="text-sm text-[var(--sea-ink-soft)]">
-                Try: &quot;Build me a website about specialty coffee&quot; — Aris will
-                research first, then plan tasks, then build locally.
+                {resumed
+                  ? 'Resumed session — prior turns load from the durable transcript.'
+                  : 'Try: "Build me a website about specialty coffee" — Aris writes .aris/STATE.md after each turn so work can continue later.'}
               </p>
             ) : null}
             {state.messages.map((msg) => (
@@ -331,12 +351,20 @@ export function ChatPage() {
             <p className="m-0 break-all text-xs text-[var(--sea-ink-soft)]">
               {sessionId ?? 'Creating session…'}
             </p>
+            {resumed ? (
+              <p className="mt-2 text-xs font-medium text-[var(--lagoon-deep)]">
+                Resumed · durable continuity
+              </p>
+            ) : null}
             {projectName ? (
               <p className="mt-2 text-xs font-medium text-[var(--sea-ink)]">{projectName}</p>
             ) : null}
             <p className="mt-2 text-xs text-[var(--sea-ink-soft)]">
               Workspace:{' '}
               <code className="break-all">{workspacePath ?? `~/.aris/sessions/{id}/`}</code>
+            </p>
+            <p className="mt-2 text-xs text-[var(--sea-ink-soft)]">
+              Handoff: <code>.aris/STATE.md</code>
             </p>
           </section>
 
