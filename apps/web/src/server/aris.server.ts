@@ -10,8 +10,12 @@ export {
 } from '@aris/workspace'
 
 export {
+  ARIS_DEFAULT_MODEL,
+  ARIS_PREFERRED_MODELS,
   cancelRun,
+  labelForModelId,
   listModels,
+  sortModelsForArisPicker,
   validateApiKey,
 } from '@aris/agent'
 

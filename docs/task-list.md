@@ -255,4 +255,44 @@ cp .env.example .env   # add CURSOR_API_KEY (or use Accounts UI)
 
 ---
 
-*Last updated: 2026-07-10 — Aris Studio v1 shell + board + chat*
+## Planned — Tauri native shell (after Master chat)
+
+See [ADR 005](./decisions/005-tauri-native-shell.md). Do not start until Master chat / core agent loop land.
+
+- [ ] Scaffold Tauri app wrapping `apps/web` (macOS first)
+- [ ] Wire local backend / Node process lifecycle from the shell
+- [ ] Native folder picker for open/create project
+- [ ] Later: Keychain for secrets, menu-bar / global shortcut for Master chat
+
+## Planned — Local memory ranking (with Master chat)
+
+See [ADR 006](./decisions/006-local-memory-ranking.md).
+
+- [ ] Memory store (SQLite FTS5) for promoted notes / Master memory / chat lines
+- [ ] BM25 retrieve + logic weights (scope, type, recency, proof, pin)
+- [ ] Agent tools: `search_memory` / promote-from-chat (no external re-ranker)
+- [ ] Optional later: local embeddings + RRF
+
+## Planned — MCP registry (after Master chat shell)
+
+See [ADR 007](./decisions/007-mcp-registry.md).
+
+- [ ] `~/.aris/mcp-servers.json` + `~/aris-secrets/mcp/`
+- [ ] Studio UI: manual add (stdio / HTTP), enable, project scope
+- [ ] Master tools: `aris_mcp_add` / list / remove / set_scope
+- [ ] Auth: API key sheet + OAuth Connect (Aris-owned; not Cursor IDE token store)
+- [ ] Resolve → pass `mcpServers` on every Agent create/resume
+
+## Planned — Master / Child + remote command + workstation
+
+See [ADR 008](./decisions/008-master-child-hermes-workstation.md).
+
+- [ ] Ship Master vs Child as separate agents (local single node first)
+- [ ] Stable Command API (Master + project/Child) suitable for second clients
+- [ ] Hermes / WhatsApp adapter (external) → Master and project work
+- [ ] Active execution node + open/move project onto Win11 workstation
+- [ ] Mac Tauri + mobile web as clients against workstation when ready
+
+---
+
+*Last updated: 2026-07-10 — ADR 005–008*

@@ -171,7 +171,9 @@ function AccountsPage() {
             <div>
               <Label className="text-sm font-medium">Default model</Label>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                The model Aris selects unless a run overrides it.
+                Prefer <span className="text-foreground">Composer 2.5</span> for coding runs and{' '}
+                <span className="text-foreground">Grok 4.5</span> for heavier reasoning. Full Cursor
+                catalog remains available below.
               </p>
             </div>
           </div>
@@ -183,18 +185,37 @@ function AccountsPage() {
               await queryClient.invalidateQueries({ queryKey: ['settings'] })
             }}
           >
-            <SelectTrigger className="w-full sm:w-64">
+            <SelectTrigger className="w-full sm:w-72">
               <SelectValue placeholder="Select model" />
             </SelectTrigger>
             <SelectContent>
               {(modelsQuery.data?.models.length
                 ? modelsQuery.data.models
-                : [{ id: 'composer-2.5', displayName: 'composer-2.5' }]
-              ).map((model) => (
-                <SelectItem key={model.id} value={model.id}>
-                  {model.displayName}
-                </SelectItem>
-              ))}
+                : [
+                    { id: 'composer-2.5', displayName: 'Composer 2.5' },
+                    { id: 'grok-4.5', displayName: 'Cursor Grok 4.5' },
+                  ]
+              ).map((model) => {
+                const preferred = (modelsQuery.data?.preferredIds ?? [
+                  'composer-2.5',
+                  'grok-4.5',
+                ]).some(
+                  (id) =>
+                    model.id === id ||
+                    model.id.toLowerCase().startsWith(`${id}-`) ||
+                    model.id.toLowerCase().includes(id),
+                )
+                return (
+                  <SelectItem key={model.id} value={model.id}>
+                    <span className="flex items-center gap-2">
+                      {model.displayName}
+                      {preferred ? (
+                        <span className="text-[10px] text-muted-foreground">preferred</span>
+                      ) : null}
+                    </span>
+                  </SelectItem>
+                )
+              })}
             </SelectContent>
           </Select>
         </div>

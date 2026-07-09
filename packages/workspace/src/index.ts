@@ -3,6 +3,9 @@ import { homedir } from "node:os"
 import { join } from "node:path"
 import { randomUUID } from "node:crypto"
 
+/** Keep in sync with `@aris/agent` `ARIS_DEFAULT_MODEL` (Composer 2.5). */
+export const ARIS_DEFAULT_MODEL = "composer-2.5"
+
 export const ARIS_HOME = join(homedir(), ".aris")
 export const ARIS_SESSIONS_DIR = join(ARIS_HOME, "sessions")
 export const ARIS_SETTINGS_PATH = join(ARIS_HOME, "settings.json")
@@ -59,13 +62,13 @@ function migrateSettings(raw: ArisSettings): ArisSettings {
       ...raw,
       accounts,
       activeAccountId: raw.activeAccountId ?? id,
-      defaultModel: raw.defaultModel ?? "composer-2.5",
+      defaultModel: raw.defaultModel ?? ARIS_DEFAULT_MODEL,
     }
   }
   return {
     ...raw,
     accounts,
-    defaultModel: raw.defaultModel ?? "composer-2.5",
+    defaultModel: raw.defaultModel ?? ARIS_DEFAULT_MODEL,
   }
 }
 
@@ -74,7 +77,7 @@ export async function readSettings(): Promise<ArisSettings> {
     const raw = await readFile(ARIS_SETTINGS_PATH, "utf8")
     return migrateSettings(JSON.parse(raw) as ArisSettings)
   } catch {
-    return { accounts: [], defaultModel: "composer-2.5" }
+    return { accounts: [], defaultModel: ARIS_DEFAULT_MODEL }
   }
 }
 

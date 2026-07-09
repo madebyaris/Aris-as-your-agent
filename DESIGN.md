@@ -6,6 +6,8 @@ Aris Studio uses a restrained, monochrome developer-workbench aesthetic. The int
 
 The memorable element is the **workflow rail**: project context and agent state remain visible while the user moves between Board and Chat.
 
+**Brand mark:** astronaut silhouette (calm, geometric). Source: [`brand/aris-studio-logo.png`](./brand/aris-studio-logo.png); app uses `/aris-logo.png` and `/favicon.png`.
+
 ## Theme
 
 - Primary scene: a developer or founder working on a 27-inch monitor for an extended session in normal office or home lighting.

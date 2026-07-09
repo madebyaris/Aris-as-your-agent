@@ -1,5 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import {
+  ARIS_DEFAULT_MODEL,
+  ARIS_PREFERRED_MODELS,
   ARIS_WORKSPACE_ROOT,
   BOARD_COLUMNS,
   appendChatLine,
@@ -17,6 +19,7 @@ import {
   getProject,
   getServer,
   join,
+  labelForModelId,
   listAgentVisibleNotes,
   listModels,
   listServersForProject,
@@ -33,6 +36,7 @@ import {
   removeAccount,
   sdkModeForColumn,
   setActiveAccount,
+  sortModelsForArisPicker,
   touchProject,
   updateBoardTask,
   updateNote,
@@ -69,7 +73,7 @@ export const getSettings = createServerFn({ method: 'GET' }).handler(async () =>
   const apiKey = getActiveApiKey(settings)
   return {
     hasApiKey: Boolean(apiKey),
-    defaultModel: settings.defaultModel ?? 'composer-2.5',
+    defaultModel: settings.defaultModel ?? ARIS_DEFAULT_MODEL,
     activeAccountId: settings.activeAccountId,
     accounts: (settings.accounts ?? []).map((a) => ({
       id: a.id,
@@ -131,13 +135,26 @@ export const setDefaultModelFn = createServerFn({ method: 'POST' })
 export const listModelsFn = createServerFn({ method: 'GET' }).handler(async () => {
   const settings = await readSettings()
   const apiKey = getActiveApiKey(settings)
-  if (!apiKey) return { models: [] as Array<{ id: string; displayName?: string }> }
+  if (!apiKey) {
+    return {
+      models: ARIS_PREFERRED_MODELS.map((m) => ({
+        id: m.id,
+        displayName: m.label,
+        preferred: true as const,
+      })),
+      preferredIds: ARIS_PREFERRED_MODELS.map((m) => m.id),
+      defaultModel: ARIS_DEFAULT_MODEL,
+    }
+  }
   const models = await listModels(apiKey)
+  const mapped = models.map((m) => ({
+    id: m.id,
+    displayName: labelForModelId(m.id) ?? (m as { displayName?: string }).displayName ?? m.id,
+  }))
   return {
-    models: models.map((m) => ({
-      id: m.id,
-      displayName: (m as { displayName?: string }).displayName ?? m.id,
-    })),
+    models: sortModelsForArisPicker(mapped),
+    preferredIds: ARIS_PREFERRED_MODELS.map((m) => m.id),
+    defaultModel: ARIS_DEFAULT_MODEL,
   }
 })
 

@@ -1,5 +1,18 @@
 import { Agent, Cursor } from "@cursor/sdk"
 import type { StreamEmitter } from "@aris/stream"
+import { resolveArisModelId } from "./models"
+
+export {
+  ARIS_DEFAULT_MODEL,
+  ARIS_PREFERRED_MODELS,
+  isPreferredModelId,
+  labelForModelId,
+  preferredModelRank,
+  resolveArisModelId,
+  sortModelsForArisPicker,
+  type ArisPreferredModel,
+  type ListedModel,
+} from "./models"
 
 export type CreateArisAgentOptions = {
   apiKey: string
@@ -28,6 +41,7 @@ export async function listModels(apiKey: string) {
 }
 
 export async function createOrResumeAgent(options: CreateArisAgentOptions) {
+  const modelId = resolveArisModelId(options.model)
   const local = {
     cwd: options.workspacePath,
     ...(options.loadProjectConfig !== false
@@ -39,7 +53,7 @@ export async function createOrResumeAgent(options: CreateArisAgentOptions) {
     try {
       return await Agent.resume(options.agentId, {
         apiKey: options.apiKey,
-        model: { id: options.model ?? process.env.CURSOR_MODEL ?? "composer-2.5" },
+        model: { id: modelId },
         local,
       })
     } catch {
@@ -50,7 +64,7 @@ export async function createOrResumeAgent(options: CreateArisAgentOptions) {
   return Agent.create({
     apiKey: options.apiKey,
     name: "Aris",
-    model: { id: options.model ?? process.env.CURSOR_MODEL ?? "composer-2.5" },
+    model: { id: modelId },
     local,
   })
 }

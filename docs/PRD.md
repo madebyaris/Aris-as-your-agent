@@ -40,7 +40,7 @@ Supporting surfaces (sidebar / settings drawers):
 | **Projects** | One project = one folder on disk. Create by picking/creating a directory. |
 | **Notes** | Private vs agent-visible context, scoped to project (or global). |
 | **Servers** | SSH targets + credentials (backup-before-mutate). |
-| **Accounts** | Cursor API key(s), default model, optional named profiles. |
+| **Accounts** | Cursor API key(s), default model (prefer **Composer 2.5** + **Grok 4.5** — [ADR 009](./decisions/009-preferred-models.md)), optional named profiles. |
 
 ### Example flows
 
@@ -192,7 +192,7 @@ User writes note → visibility: private | agent
 ```typescript
 Agent.create({
   apiKey: process.env.CURSOR_API_KEY!,
-  model: { id: "composer-2.5" },
+  model: { id: "composer-2.5" }, // default; Grok 4.5 preferred alternate (ADR 009)
   local: {
     cwd: workspacePath,
     settingSources: ["project"], // load .cursor/ from Aris repo when relevant
@@ -299,7 +299,7 @@ Visual direction: dense **agent studio** (Linear/Cursor-adjacent), not a marketi
 | **Open existing** | User pastes/selects absolute path → validate readable → register as `mode: continue` |
 | **Per-project sidecar** | `{workspace}/.aris-workspace/` — `tasks.json`, `chat/`, `notes` link ids, preview port — stays with the folder when moved. Distinctive name so it never clashes with a user's existing `.aris` or `workspace` folders; auto-added to the project's `.gitignore` |
 
-**Why not browser File System Access API alone?** Cursor SDK runs in Node with a real `cwd`. The UI must give the **server** a filesystem path. v1: path input + recent paths + "create under ~/aris-workspace". Later: native folder dialog (Tauri/Electron) or a tiny local helper — not required for MVP.
+**Why not browser File System Access API alone?** Cursor SDK runs in Node with a real `cwd`. The UI must give the **server** a filesystem path. v1: path input + recent paths + "create under ~/aris-workspace". Later: native folder dialog via **Tauri** shell ([ADR 005](./decisions/005-tauri-native-shell.md)) — not required for MVP.
 
 **Isolation:** one project folder = one agent workspace. Sessions are runs *inside* that folder, not separate orphan dirs (orphan `~/.aris/sessions/` only for throwaway greenfield before "Save as project").
 
@@ -358,6 +358,18 @@ Visual direction: dense **agent studio** (Linear/Cursor-adjacent), not a marketi
 | `private` | ✅ read/write | ❌ never injected |
 | `agent` | ✅ read/write | ✅ included in context |
 
+### Memory ranking (planned)
+
+Durable Studio knowledge (promoted notes, Master memory, chat lines, ADRs) is retrieved **on-device** via SQLite FTS5 BM25 plus logic weights (scope, type, recency, proof, pin). **No external LLM re-ranker.** Code search stays with Cursor indexing. See [ADR 006](./decisions/006-local-memory-ranking.md).
+
+### MCP registry (planned)
+
+MCP servers are added **manually** in Studio, **via Master tool calls**, or marked **needs login** (API key / Aris-owned OAuth). Config lives in `~/.aris/mcp-servers.json`; secrets in `~/aris-secrets/mcp/`. Resolved map is passed to the Cursor SDK on every run. See [ADR 007](./decisions/007-mcp-registry.md).
+
+### Master / Child + workstation (planned)
+
+**Master** = control plane; **Child** = per-project execution. Hermes (e.g. WhatsApp) is an external commander that can drive **Master and project/Child** work via the Command API. Mobile/Mac are Studio clients. Later, a Win11 **workstation** can be the execution node. See [ADR 008](./decisions/008-master-child-hermes-workstation.md).
+
 ---
 
 ## 12. Security
@@ -403,7 +415,7 @@ Visual direction: dense **agent studio** (Linear/Cursor-adjacent), not a marketi
 
 ### Phase 4 — Power features
 
-- Git worktree, CLI, optional native folder picker / desktop shell
+- Git worktree, CLI, optional native folder picker / desktop shell (**Tauri** — [ADR 005](./decisions/005-tauri-native-shell.md))
 
 ---
 

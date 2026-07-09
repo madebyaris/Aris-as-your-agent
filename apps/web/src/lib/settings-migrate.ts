@@ -15,6 +15,8 @@ type ArisSettings = {
 }
 
 /** Pure migration helper for tests (mirrors @aris/workspace migrateSettings). */
+const DEFAULT_MODEL = 'composer-2.5'
+
 export function migrateSettingsForTest(raw: ArisSettings): ArisSettings {
   const accounts = [...(raw.accounts ?? [])]
   if (raw.cursorApiKey?.trim() && accounts.length === 0) {
@@ -29,12 +31,12 @@ export function migrateSettingsForTest(raw: ArisSettings): ArisSettings {
       ...raw,
       accounts,
       activeAccountId: raw.activeAccountId ?? id,
-      defaultModel: raw.defaultModel ?? 'composer-2.5',
+      defaultModel: raw.defaultModel ?? DEFAULT_MODEL,
     }
   }
   return {
     ...raw,
     accounts,
-    defaultModel: raw.defaultModel ?? 'composer-2.5',
+    defaultModel: raw.defaultModel ?? DEFAULT_MODEL,
   }
 }

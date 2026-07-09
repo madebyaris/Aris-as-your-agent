@@ -50,3 +50,19 @@ UI (Board or Chat)
 ## Package seams
 
 Prefer extending existing `@aris/*` APIs over new parallel packages. UI is a thin adapter over server functions.
+
+## Native shell (planned)
+
+**Next packaging step: Tauri** on macOS — wrap `apps/web`, keep `@aris/*` as local backend. See [ADR 005](./decisions/005-tauri-native-shell.md). Not started until Master chat / core loop land.
+
+## Memory ranking (planned)
+
+**On-device only:** SQLite FTS5 BM25 + logic weights (scope, type, recency, proof, pin). No external LLM re-ranker. Optional later: local embeddings + RRF. See [ADR 006](./decisions/006-local-memory-ranking.md). Codebase search stays with Cursor indexing.
+
+## MCP registry (planned)
+
+Studio-owned MCP list: **manual UI**, **Master tool-add**, **login** (API key or Aris-owned OAuth). Pass resolved `mcpServers` on every `Agent.create`/`resume`. Do not rely on Cursor IDE OAuth token store for local SDK. See [ADR 007](./decisions/007-mcp-registry.md).
+
+## Topology (planned)
+
+**Master** (control) vs **Child** (per-project execution). Clients: Mac Tauri, mobile web; Hermes/WhatsApp commands **Master and project/Child** via Command API. Later: Win11 **workstation node** holds folders + agent cwd; Mac/phone are clients. See [ADR 008](./decisions/008-master-child-hermes-workstation.md).

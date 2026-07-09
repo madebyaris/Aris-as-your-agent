@@ -22,6 +22,13 @@ function HomePage() {
   return (
     <main className="mx-auto flex min-h-svh max-w-xl flex-col justify-center gap-8 px-6 py-16">
       <div className="space-y-4">
+        <img
+          src="/aris-logo.png"
+          alt="Aris Studio"
+          width={56}
+          height={56}
+          className="size-14 rounded-xl border bg-background shadow-xs"
+        />
         <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
           Aris Studio
         </p>

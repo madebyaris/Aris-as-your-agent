@@ -15,6 +15,11 @@ Living milestone tracker. Update at the end of every milestone with honest proof
 | M6 — Notes + Servers | verified | 2026-07-10 | Studio pages + unit test for private-note exclusion; servers registry UI (exec still Phase 2) |
 | M7 — Polish + verify | verified | 2026-07-10 | Landing rewrite; vitest 4/4 pass; web build + typecheck pass; demo fake-key seed removed |
 | Post-M7 — secrets root + taskbar | verified | 2026-07-10 | `~/aris-secrets/servers` + ADR 004; StudioTaskbar + run context. Evidence: typecheck + vitest 6/6; browser: taskbar + quick menu on `/studio`, servers route loads |
+| Planned — Tauri native shell | pending | 2026-07-10 | [ADR 005](./decisions/005-tauri-native-shell.md) accepted: wrap `apps/web` after Master chat / core loop |
+| Planned — local memory ranking | pending | 2026-07-10 | [ADR 006](./decisions/006-local-memory-ranking.md): BM25 + logic weights; no external LLM re-ranker |
+| Planned — MCP registry | pending | 2026-07-10 | [ADR 007](./decisions/007-mcp-registry.md): manual + tool-add + login; Aris-owned secrets/OAuth |
+| Planned — Master/Child + Hermes + workstation | pending | 2026-07-10 | [ADR 008](./decisions/008-master-child-hermes-workstation.md): dual agents; Hermes→Master + Child; Win11 node later |
+| Preferred models | verified | 2026-07-10 | [ADR 009](./decisions/009-preferred-models.md): default `composer-2.5`, prefer `grok-4.5`; Accounts sorts preferred first |
 
 ## Blockers
 

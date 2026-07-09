@@ -14,6 +14,8 @@ Their primary job is to continue a living software project with confidence: unde
 
 Aris Studio is a local-first workspace around the Cursor SDK. It combines an executable kanban process with immediate chat, persistent folder-backed projects, notes, account configuration, and server context.
 
+The long-term shape is **Master (control) vs Child (project execution)**. Mac app and mobile web are Studio clients; **Hermes** (e.g. WhatsApp) is an external commander that can drive both Master and project/Child work. Project execution may later run on a dedicated **workstation node** (including Windows 11). See [ADR 008](./docs/decisions/008-master-child-hermes-workstation.md).
+
 Success means the product feels calmer and more trustworthy than a raw agent terminal while preserving expert-level control. A user should understand the current project, the next useful action, and what the agent is doing within seconds.
 
 ## Brand Personality

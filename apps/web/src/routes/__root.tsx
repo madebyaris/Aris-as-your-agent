@@ -27,7 +27,11 @@ export const Route = createRootRoute({
           'Local-first agent studio — kanban pipeline + chat, powered by Cursor SDK.',
       },
     ],
-    links: [{ rel: 'stylesheet', href: appCss }],
+    links: [
+      { rel: 'stylesheet', href: appCss },
+      { rel: 'icon', href: '/favicon.png', type: 'image/png' },
+      { rel: 'apple-touch-icon', href: '/logo192.png' },
+    ],
   }),
   shellComponent: RootDocument,
   component: RootComponent,

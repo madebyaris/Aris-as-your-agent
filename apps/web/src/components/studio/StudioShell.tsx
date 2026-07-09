@@ -101,8 +101,14 @@ export function StudioShell({ children }: { children: ReactNode }) {
             <SidebarMenuItem>
               <SidebarMenuButton size="lg" asChild className="data-[slot=sidebar-menu-button]:p-2!">
                 <Link to="/studio">
-                  <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground text-sm font-semibold tracking-tight shadow-xs">
-                    A
+                  <div className="flex aspect-square size-8 items-center justify-center overflow-hidden rounded-lg border border-sidebar-border bg-background shadow-xs">
+                    <img
+                      src="/aris-logo.png"
+                      alt=""
+                      width={32}
+                      height={32}
+                      className="size-8 object-cover"
+                    />
                   </div>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-semibold tracking-tight">Aris Studio</span>
