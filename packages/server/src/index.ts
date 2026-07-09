@@ -1,16 +1,29 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises"
+import {
+  access,
+  copyFile,
+  mkdir,
+  readFile,
+  writeFile,
+} from "node:fs/promises"
 import { join } from "node:path"
 import { randomUUID } from "node:crypto"
-import { ARIS_HOME, ensureArisHome } from "@aris/workspace"
+import {
+  ARIS_HOME,
+  ARIS_SECRETS_ROOT,
+  ensureArisHome,
+} from "@aris/workspace"
 import { createNote } from "@aris/notes"
 
 export const SERVERS_REGISTRY_PATH = join(ARIS_HOME, "servers.json")
-export const SERVER_SECRETS_DIR = join(ARIS_HOME, "secrets", "servers")
+/** Current secrets location — collision-safe dedicated root. */
+export const SERVER_SECRETS_DIR = join(ARIS_SECRETS_ROOT, "servers")
+/** Legacy path used before ADR 004. Migrated on first access. */
+export const LEGACY_SERVER_SECRETS_DIR = join(ARIS_HOME, "secrets", "servers")
 export const SERVER_BACKUPS_DIR = join(ARIS_HOME, "backups", "servers")
 
 export type ServerAuthType = "password" | "private_key"
 
-/** Credential metadata — secrets stored separately under ~/.aris/secrets/servers/ */
+/** Credential metadata — secrets stored separately under ~/aris-secrets/servers/ */
 export type ServerTarget = {
   id: string
   label: string
@@ -24,6 +37,11 @@ export type ServerTarget = {
   updatedAt: string
   /** Optional tags: production, staging, wordpress, etc. */
   tags?: string[]
+  /**
+   * Projects that can see this server.
+   * Empty / undefined = visible to all projects (legacy).
+   */
+  projectIds?: string[]
 }
 
 export type ServersRegistry = {
@@ -69,6 +87,48 @@ export type ServerTaskPlan = {
   backupRequired: true
 }
 
+async function pathExists(path: string) {
+  try {
+    await access(path)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Ensure secrets dir exists and migrate any legacy files from
+ * `~/.aris/secrets/servers/` → `~/aris-secrets/servers/`.
+ */
+export async function ensureServerSecretsDir() {
+  await ensureArisHome()
+  await mkdir(SERVER_SECRETS_DIR, { recursive: true, mode: 0o700 })
+
+  if (!(await pathExists(LEGACY_SERVER_SECRETS_DIR))) return
+
+  const registry = await readServersRegistry()
+  for (const server of registry.servers) {
+    const nextPath = join(SERVER_SECRETS_DIR, server.secretRef)
+    const legacyPath = join(LEGACY_SERVER_SECRETS_DIR, server.secretRef)
+    if (await pathExists(nextPath)) continue
+    if (!(await pathExists(legacyPath))) continue
+    await copyFile(legacyPath, nextPath)
+  }
+}
+
+/** Resolve the on-disk secret path, preferring the new root with legacy fallback. */
+export async function resolveServerSecretPath(secretRef: string): Promise<string> {
+  await ensureServerSecretsDir()
+  const nextPath = join(SERVER_SECRETS_DIR, secretRef)
+  if (await pathExists(nextPath)) return nextPath
+  const legacyPath = join(LEGACY_SERVER_SECRETS_DIR, secretRef)
+  if (await pathExists(legacyPath)) {
+    await copyFile(legacyPath, nextPath)
+    return nextPath
+  }
+  return nextPath
+}
+
 export async function readServersRegistry(): Promise<ServersRegistry> {
   try {
     const raw = await readFile(SERVERS_REGISTRY_PATH, "utf8")
@@ -79,8 +139,7 @@ export async function readServersRegistry(): Promise<ServersRegistry> {
 }
 
 export async function writeServersRegistry(registry: ServersRegistry) {
-  await ensureArisHome()
-  await mkdir(SERVER_SECRETS_DIR, { recursive: true })
+  await ensureServerSecretsDir()
   await writeFile(SERVERS_REGISTRY_PATH, JSON.stringify(registry, null, 2), "utf8")
 }
 
@@ -92,9 +151,10 @@ export async function registerServer(input: {
   authType: ServerAuthType
   secret: string
   tags?: string[]
+  /** Projects that can see this server. Empty = all projects. */
+  projectIds?: string[]
 }): Promise<ServerTarget> {
-  await ensureArisHome()
-  await mkdir(SERVER_SECRETS_DIR, { recursive: true })
+  await ensureServerSecretsDir()
 
   const id = randomUUID()
   const secretRef = `${id}.secret`
@@ -113,6 +173,7 @@ export async function registerServer(input: {
     authType: input.authType,
     secretRef,
     tags: input.tags ?? [],
+    projectIds: input.projectIds ?? [],
     createdAt: now,
     updatedAt: now,
   }
@@ -126,6 +187,41 @@ export async function registerServer(input: {
 export async function getServer(serverId: string): Promise<ServerTarget | null> {
   const registry = await readServersRegistry()
   return registry.servers.find((s) => s.id === serverId) ?? null
+}
+
+/** True if the server is visible to the given project (or globally when unscoped). */
+export function serverVisibleToProject(
+  server: ServerTarget,
+  projectId: string | undefined,
+): boolean {
+  const ids = server.projectIds ?? []
+  if (ids.length === 0) return true
+  if (!projectId) return false
+  return ids.includes(projectId)
+}
+
+export async function listServersForProject(
+  projectId?: string,
+): Promise<ServerTarget[]> {
+  const registry = await readServersRegistry()
+  if (!projectId) return registry.servers
+  return registry.servers.filter((s) => serverVisibleToProject(s, projectId))
+}
+
+export async function updateServerProjects(
+  serverId: string,
+  projectIds: string[],
+): Promise<ServerTarget | null> {
+  const registry = await readServersRegistry()
+  const index = registry.servers.findIndex((s) => s.id === serverId)
+  if (index === -1) return null
+  registry.servers[index] = {
+    ...registry.servers[index],
+    projectIds,
+    updatedAt: new Date().toISOString(),
+  }
+  await writeServersRegistry(registry)
+  return registry.servers[index]
 }
 
 export function createServerTaskPlan(

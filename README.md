@@ -8,8 +8,10 @@ Local-first senior developer agent — **software never finishes**. Continue pro
 
 | File | Purpose |
 |------|---------|
-| [PRD.md](./PRD.md) | Product requirements & architecture |
-| [task-list.md](./task-list.md) | Implementation checklist — update as you work |
+| [docs/README.md](./docs/README.md) | Docs index |
+| [docs/PRD.md](./docs/PRD.md) | Product requirements & architecture |
+| [docs/progress.md](./docs/progress.md) | v1 milestone tracker |
+| [docs/task-list.md](./docs/task-list.md) | Implementation checklist |
 
 ## Quick start
 
@@ -19,17 +21,20 @@ cp .env.example .env   # optional: CURSOR_API_KEY
 pnpm dev               # → http://localhost:3000
 ```
 
-1. Open **Chat**
-2. Save your Cursor API key (stored in `~/.aris/settings.json`)
-3. Try: *"Build me a website about specialty coffee"*
+1. Open **Studio** (`/studio`)
+2. Save your Cursor API key under **Accounts** (stored in `~/.aris/settings.json`)
+3. Create or open a project folder, then chat or run the board
 
 ## Monorepo
 
 ```
+docs/         PRD, progress, architecture, ADRs
 packages/     @aris/core, agent, workspace, projects, notes, server, …
-apps/web      TanStack Start UI — /chat, /projects
-.cursor/      Aris persona + server-safety skill
+apps/web      TanStack Start UI → Aris Studio (shadcn dashboard)
+.cursor/      composer-rules (core + verify) + Aris persona / server-safety
 ```
+
+**Product direction:** kanban that runs the research→build pipeline, plus immediate chat, notes, servers, and accounts. One project = one folder under `~/aris-workspace/` (or a path you choose). Sidecar: `.aris-workspace/`. See [docs/PRD.md](./docs/PRD.md).
 
 ## Requirements
 

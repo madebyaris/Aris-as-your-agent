@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@aris/core": "workspace:*"
+    "@aris/core": "workspace:*",
+    "@aris/projects": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

@@ -11,9 +11,15 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as ChatRouteImport } from './routes/chat'
-import { Route as AboutRouteImport } from './routes/about'
+import { Route as StudioRouteImport } from './routes/_studio'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as ApiAgentRouteImport } from './routes/api/agent'
+import { Route as StudioServersRouteImport } from './routes/_studio/servers'
+import { Route as StudioNotesRouteImport } from './routes/_studio/notes'
+import { Route as StudioAccountsRouteImport } from './routes/_studio/accounts'
+import { Route as StudioStudioIndexRouteImport } from './routes/_studio/studio/index'
+import { Route as StudioStudioProjectIdRouteImport } from './routes/_studio/studio/$projectId'
 
 const ProjectsRoute = ProjectsRouteImport.update({
   id: '/projects',
@@ -25,9 +31,8 @@ const ChatRoute = ChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AboutRoute = AboutRouteImport.update({
-  id: '/about',
-  path: '/about',
+const StudioRoute = StudioRouteImport.update({
+  id: '/_studio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -40,42 +45,121 @@ const ApiChatRoute = ApiChatRouteImport.update({
   path: '/api/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAgentRoute = ApiAgentRouteImport.update({
+  id: '/api/agent',
+  path: '/api/agent',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudioServersRoute = StudioServersRouteImport.update({
+  id: '/servers',
+  path: '/servers',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioNotesRoute = StudioNotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioAccountsRoute = StudioAccountsRouteImport.update({
+  id: '/accounts',
+  path: '/accounts',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioStudioIndexRoute = StudioStudioIndexRouteImport.update({
+  id: '/studio/',
+  path: '/studio/',
+  getParentRoute: () => StudioRoute,
+} as any)
+const StudioStudioProjectIdRoute = StudioStudioProjectIdRouteImport.update({
+  id: '/studio/$projectId',
+  path: '/studio/$projectId',
+  getParentRoute: () => StudioRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/about': typeof AboutRoute
   '/chat': typeof ChatRoute
   '/projects': typeof ProjectsRoute
+  '/accounts': typeof StudioAccountsRoute
+  '/notes': typeof StudioNotesRoute
+  '/servers': typeof StudioServersRoute
+  '/api/agent': typeof ApiAgentRoute
   '/api/chat': typeof ApiChatRoute
+  '/studio/$projectId': typeof StudioStudioProjectIdRoute
+  '/studio/': typeof StudioStudioIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/about': typeof AboutRoute
   '/chat': typeof ChatRoute
   '/projects': typeof ProjectsRoute
+  '/accounts': typeof StudioAccountsRoute
+  '/notes': typeof StudioNotesRoute
+  '/servers': typeof StudioServersRoute
+  '/api/agent': typeof ApiAgentRoute
   '/api/chat': typeof ApiChatRoute
+  '/studio/$projectId': typeof StudioStudioProjectIdRoute
+  '/studio': typeof StudioStudioIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/about': typeof AboutRoute
+  '/_studio': typeof StudioRouteWithChildren
   '/chat': typeof ChatRoute
   '/projects': typeof ProjectsRoute
+  '/_studio/accounts': typeof StudioAccountsRoute
+  '/_studio/notes': typeof StudioNotesRoute
+  '/_studio/servers': typeof StudioServersRoute
+  '/api/agent': typeof ApiAgentRoute
   '/api/chat': typeof ApiChatRoute
+  '/_studio/studio/$projectId': typeof StudioStudioProjectIdRoute
+  '/_studio/studio/': typeof StudioStudioIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/chat' | '/projects' | '/api/chat'
+  fullPaths:
+    | '/'
+    | '/chat'
+    | '/projects'
+    | '/accounts'
+    | '/notes'
+    | '/servers'
+    | '/api/agent'
+    | '/api/chat'
+    | '/studio/$projectId'
+    | '/studio/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about' | '/chat' | '/projects' | '/api/chat'
-  id: '__root__' | '/' | '/about' | '/chat' | '/projects' | '/api/chat'
+  to:
+    | '/'
+    | '/chat'
+    | '/projects'
+    | '/accounts'
+    | '/notes'
+    | '/servers'
+    | '/api/agent'
+    | '/api/chat'
+    | '/studio/$projectId'
+    | '/studio'
+  id:
+    | '__root__'
+    | '/'
+    | '/_studio'
+    | '/chat'
+    | '/projects'
+    | '/_studio/accounts'
+    | '/_studio/notes'
+    | '/_studio/servers'
+    | '/api/agent'
+    | '/api/chat'
+    | '/_studio/studio/$projectId'
+    | '/_studio/studio/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AboutRoute: typeof AboutRoute
+  StudioRoute: typeof StudioRouteWithChildren
   ChatRoute: typeof ChatRoute
   ProjectsRoute: typeof ProjectsRoute
+  ApiAgentRoute: typeof ApiAgentRoute
   ApiChatRoute: typeof ApiChatRoute
 }
 
@@ -95,11 +179,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/about': {
-      id: '/about'
-      path: '/about'
-      fullPath: '/about'
-      preLoaderRoute: typeof AboutRouteImport
+    '/_studio': {
+      id: '/_studio'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof StudioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -116,14 +200,76 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/agent': {
+      id: '/api/agent'
+      path: '/api/agent'
+      fullPath: '/api/agent'
+      preLoaderRoute: typeof ApiAgentRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_studio/servers': {
+      id: '/_studio/servers'
+      path: '/servers'
+      fullPath: '/servers'
+      preLoaderRoute: typeof StudioServersRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/_studio/notes': {
+      id: '/_studio/notes'
+      path: '/notes'
+      fullPath: '/notes'
+      preLoaderRoute: typeof StudioNotesRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/_studio/accounts': {
+      id: '/_studio/accounts'
+      path: '/accounts'
+      fullPath: '/accounts'
+      preLoaderRoute: typeof StudioAccountsRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/_studio/studio/': {
+      id: '/_studio/studio/'
+      path: '/studio'
+      fullPath: '/studio/'
+      preLoaderRoute: typeof StudioStudioIndexRouteImport
+      parentRoute: typeof StudioRoute
+    }
+    '/_studio/studio/$projectId': {
+      id: '/_studio/studio/$projectId'
+      path: '/studio/$projectId'
+      fullPath: '/studio/$projectId'
+      preLoaderRoute: typeof StudioStudioProjectIdRouteImport
+      parentRoute: typeof StudioRoute
+    }
   }
 }
 
+interface StudioRouteChildren {
+  StudioAccountsRoute: typeof StudioAccountsRoute
+  StudioNotesRoute: typeof StudioNotesRoute
+  StudioServersRoute: typeof StudioServersRoute
+  StudioStudioProjectIdRoute: typeof StudioStudioProjectIdRoute
+  StudioStudioIndexRoute: typeof StudioStudioIndexRoute
+}
+
+const StudioRouteChildren: StudioRouteChildren = {
+  StudioAccountsRoute: StudioAccountsRoute,
+  StudioNotesRoute: StudioNotesRoute,
+  StudioServersRoute: StudioServersRoute,
+  StudioStudioProjectIdRoute: StudioStudioProjectIdRoute,
+  StudioStudioIndexRoute: StudioStudioIndexRoute,
+}
+
+const StudioRouteWithChildren =
+  StudioRoute._addFileChildren(StudioRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AboutRoute: AboutRoute,
+  StudioRoute: StudioRouteWithChildren,
   ChatRoute: ChatRoute,
   ProjectsRoute: ProjectsRoute,
+  ApiAgentRoute: ApiAgentRoute,
   ApiChatRoute: ApiChatRoute,
 }
 export const routeTree = rootRouteImport

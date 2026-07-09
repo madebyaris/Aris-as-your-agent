@@ -184,7 +184,7 @@ export function ProjectsPage() {
         <section className="island-shell rounded-2xl p-5">
           <h2 className="mb-3 text-lg font-semibold">Servers (SSH)</h2>
           <p className="mb-3 text-xs text-[var(--sea-ink-soft)]">
-            Credentials stored in <code>~/.aris/secrets/servers/</code>. Every task
+            Credentials stored in <code>~/aris-secrets/servers/</code>. Every task
             requires backup + pre-change note before changes.
           </p>
           <ul className="mb-4 space-y-2 text-sm">

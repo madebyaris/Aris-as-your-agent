@@ -100,6 +100,8 @@ export async function listAgentVisibleNotes(filter: {
   const registry = await readNotesRegistry()
   return registry.notes.filter((note) => {
     if (note.visibility !== "agent") return false
+    // Global agent notes (no project/server scope) always included
+    if (!note.projectId && !note.serverId) return true
     if (filter.projectId && note.projectId === filter.projectId) return true
     if (filter.serverId && note.serverId === filter.serverId) return true
     return false

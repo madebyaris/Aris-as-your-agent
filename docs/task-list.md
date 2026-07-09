@@ -2,7 +2,7 @@
 
 > Living implementation checklist. Update this file as work completes so you can continue on desktop or any machine.
 >
-> **PRD:** [PRD.md](./PRD.md) · **Branch:** `cursor/tanstack-scaffold-6200`
+> **PRD:** [PRD.md](./PRD.md) · **Progress:** [progress.md](./progress.md) · **Branch:** `cursor/tanstack-scaffold-6200`
 
 **Legend:** `[x]` done · `[ ]` todo · `[~]` in progress
 
@@ -181,6 +181,47 @@
 
 ---
 
+## Phase 0.5 — Aris Studio shell (shadcn dashboard)
+
+> Product pivot: kanban that runs the pipeline + immediate chat + notes/servers/accounts. See PRD §2 and §10.
+
+### Agent harness
+
+- [x] Merge [cursor-composer-rules](https://github.com/madebyaris/cursor-composer-rules) into `.cursor/`
+  - [x] Always-on: `composer-core`, `composer-verification`
+  - [x] Requestable rules + `deep-research` / `senior-practices` skills
+  - [x] `verifier` + `debugger` agents (kept `aris-*` + server-safety / senior-developer)
+
+### UI foundation
+
+- [x] `npx shadcn@latest init` in `apps/web` (TanStack Start compatible paths)
+- [x] Add Sidebar + layout primitives (button, card, dialog, sheet, tabs, …)
+- [~] AI Elements registry — deferred; custom StudioChat with same UX patterns
+- [x] Studio shell: sidebar (Projects, Notes, Servers, Accounts) + main outlet
+- [x] Theme: replace island marketing chrome with dense studio tokens
+
+### Project = folder
+
+- [x] Create project: name + parent path → mkdir under `~/aris-workspace` (or custom parent)
+- [x] Open existing: validate absolute path → register `mode: continue`
+- [x] Per-project sidecar `{workspace}/.aris-workspace/` for tasks + chat index
+- [x] Recent paths list in open dialog
+
+### Dual surface
+
+- [x] Board tab: columns Backlog → Research → Plan → Build → Review → Done
+- [x] Chat tab: `/api/agent` SSE inside studio
+- [x] Promote chat → board cards
+- [x] Accounts page: API key + default model
+- [x] Notes + Servers pages inside studio nav
+
+### Verify
+
+- [x] `pnpm typecheck` / `pnpm build` after shadcn init
+- [ ] Manual: open studio, create folder project, send chat message (needs API key)
+
+---
+
 ## Handoff notes
 
 <!-- Add notes here when pausing work -->
@@ -188,31 +229,30 @@
 | Date | Machine | Notes |
 |------|---------|-------|
 | 2026-07-06 | Cloud agent | Phase 0 scaffold. Added projects, notes, server packages + PRD philosophy. |
-| 2026-07-06 | Cloud agent | Next: Phase 1 chat + Phase 1.5 projects/notes UI. |
+| 2026-07-10 | Cursor | Aris Studio v1 implemented (M0–M7). Live agent smoke still needs API key. |
 
 ### Quick resume commands
 
 ```bash
-git checkout cursor/tanstack-scaffold-6200
 pnpm install
 pnpm dev          # → http://localhost:3000
-cp .env.example .env   # add CURSOR_API_KEY
+cp .env.example .env   # add CURSOR_API_KEY (or use Accounts UI)
 ```
 
 ### Key files to read first
 
 | File | Why |
 |------|-----|
-| `PRD.md` | Full product context |
+| `docs/PRD.md` | Full product context (Studio IA) |
+| `docs/progress.md` | Milestone tracker |
 | `packages/core/src/pipeline.ts` | Phase orchestration |
 | `packages/server/src/index.ts` | SSH + backup gate |
 | `packages/notes/src/index.ts` | Note visibility |
-| `packages/projects/src/index.ts` | Continue-project registry |
-| `.cursor/skills/server-safety/SKILL.md` | Server mutation rules |
-| `apps/web/src/routes/api/chat.ts` | SSE endpoint |
-| `apps/web/src/routes/chat.tsx` | Main UI |
+| `packages/projects/src/index.ts` | Folder-backed registry + sidecar |
+| `.cursor/rules/composer-core.mdc` | Builder spine |
+| `apps/web/src/routes/api/agent.ts` | SSE endpoint |
 | `.cursor/skills/senior-developer/SKILL.md` | Aris persona |
 
 ---
 
-*Last updated: 2026-07-06 — living projects, notes, server safety*
+*Last updated: 2026-07-10 — Aris Studio v1 shell + board + chat*

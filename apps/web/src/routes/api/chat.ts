@@ -1,89 +1,16 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { streamArisResponse } from '@aris/agent'
-import {
-  formatNotesForAgentContext,
-  listAgentVisibleNotes,
-} from '@aris/notes'
-import { getProject, touchProject } from '@aris/projects'
-import { readSettings } from '@aris/workspace'
 
+/** @deprecated Use POST /api/agent — kept for older clients. */
 export const Route = createFileRoute('/api/chat')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const body = (await request.json()) as {
-          sessionId?: string
-          message?: string
-          projectId?: string
-        }
-
-        if (!body.sessionId || !body.message?.trim()) {
-          return Response.json(
-            { error: 'sessionId and message are required.' },
-            { status: 400 },
-          )
-        }
-
-        const settings = await readSettings()
-        const apiKey =
-          settings.cursorApiKey?.trim() ?? process.env.CURSOR_API_KEY?.trim()
-
-        const { getSessionWorkspacePath } = await import('@aris/workspace')
-
-        let workspacePath = await getSessionWorkspacePath(body.sessionId)
-        let projectMode: string | undefined
-        let agentNotes: string | undefined
-
-        if (body.projectId) {
-          const project = await getProject(body.projectId)
-          if (project) {
-            workspacePath = project.workspacePath
-            projectMode = project.mode
-            await touchProject(project.id, { lastSessionId: body.sessionId })
-            const notes = await listAgentVisibleNotes({ projectId: project.id })
-            agentNotes = formatNotesForAgentContext(notes)
-          }
-        }
-
-        const stream = new ReadableStream({
-          async start(controller) {
-            const encoder = new TextEncoder()
-            const send = (event: string, data: unknown) => {
-              controller.enqueue(
-                encoder.encode(
-                  `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
-                ),
-              )
-            }
-
-            try {
-              await streamArisResponse({
-                apiKey,
-                workspacePath,
-                userMessage: body.message!.trim(),
-                model: settings.defaultModel,
-                projectMode,
-                agentNotes,
-                emit: (event) => send(event.type, event),
-              })
-            } catch (error) {
-              const message =
-                error instanceof Error ? error.message : 'Chat stream failed.'
-              send('error', { message })
-              send('done', { ok: false })
-            } finally {
-              controller.close()
-            }
-          },
-        })
-
-        return new Response(stream, {
-          headers: {
-            'Cache-Control': 'no-cache, no-transform',
-            Connection: 'keep-alive',
-            'Content-Type': 'text/event-stream; charset=utf-8',
-            'X-Accel-Buffering': 'no',
-          },
+        const body = await request.text()
+        const origin = new URL(request.url).origin
+        return fetch(`${origin}/api/agent`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
         })
       },
     },

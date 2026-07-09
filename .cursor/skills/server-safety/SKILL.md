@@ -30,6 +30,6 @@ description: Mandatory safety workflow for SSH/server tasks. Use whenever connec
 
 ## Credentials
 
-- Stored only under `~/.aris/secrets/servers/` (mode 0600)
+- Stored only under `~/aris-secrets/servers/` (mode 0600; legacy `~/.aris/secrets/servers/` migrated on access)
 - Never log passwords or private keys
 - Never commit secrets to git

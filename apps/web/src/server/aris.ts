@@ -1,71 +1,145 @@
 import { createServerFn } from '@tanstack/react-start'
 import {
-  createSessionWorkspace,
-  readSettings,
-  writeSettings,
-} from '@aris/workspace'
-import { validateApiKey } from '@aris/agent'
-import { createDefaultTaskGraph } from '@aris/tasks'
-import { mkdir } from 'node:fs/promises'
-import { join } from 'node:path'
-import { homedir } from 'node:os'
-import {
-  createProject,
-  getProject,
-  readProjectsRegistry,
-  touchProject,
-  type ProjectMode,
-} from '@aris/projects'
-import {
-  createNote,
-  listAgentVisibleNotes,
-  readNotesRegistry,
-  updateNote,
-  deleteNote,
-  type NoteVisibility,
-} from '@aris/notes'
-import {
+  ARIS_WORKSPACE_ROOT,
+  BOARD_COLUMNS,
+  appendChatLine,
   beginServerTaskSafely,
+  cancelRun,
+  createBoardTask,
+  createNote,
+  createProjectInFolder,
+  createScratchProject,
+  createSessionWorkspace,
   createServerTaskPlan,
+  createTasksFromPlan,
+  deleteNote,
+  getActiveApiKey,
+  getProject,
   getServer,
+  join,
+  listAgentVisibleNotes,
+  listModels,
+  listServersForProject,
+  mkdir,
+  openProjectFromPath,
+  phasePrompt,
+  readChatHistory,
+  readNotesRegistry,
+  readProjectsRegistry,
   readServersRegistry,
+  readSettings,
+  readTasksStore,
   registerServer,
-  type ServerAuthType,
-} from '@aris/server'
+  removeAccount,
+  sdkModeForColumn,
+  setActiveAccount,
+  touchProject,
+  updateBoardTask,
+  updateNote,
+  updateServerProjects,
+  upsertAccount,
+  validateApiKey,
+  writeSettings,
+} from './aris.server'
+import type { ProjectMode } from '@aris/projects'
+import type { NoteVisibility } from '@aris/notes'
+import type { ServerAuthType } from '@aris/server'
+import type { BoardColumn, ProofLabel } from '@aris/tasks'
+import type { TaskPriority } from '@aris/core'
 
 export const getHealth = createServerFn({ method: 'GET' }).handler(async () => {
   return {
     ok: true,
-    service: 'aris-as-your-agent',
+    service: 'aris-studio',
     runtime: 'local',
     timestamp: new Date().toISOString(),
   }
 })
 
-export const getSettings = createServerFn({ method: 'GET' }).handler(async () => {
+export const getLandingState = createServerFn({ method: 'GET' }).handler(async () => {
   const settings = await readSettings()
   return {
-    hasApiKey: Boolean(settings.cursorApiKey?.trim()),
+    hasApiKey: Boolean(getActiveApiKey(settings)),
+    lastProjectId: settings.lastProjectId,
+  }
+})
+
+export const getSettings = createServerFn({ method: 'GET' }).handler(async () => {
+  const settings = await readSettings()
+  const apiKey = getActiveApiKey(settings)
+  return {
+    hasApiKey: Boolean(apiKey),
     defaultModel: settings.defaultModel ?? 'composer-2.5',
+    activeAccountId: settings.activeAccountId,
+    accounts: (settings.accounts ?? []).map((a) => ({
+      id: a.id,
+      label: a.label,
+      createdAt: a.createdAt,
+      keyHint: a.apiKey.slice(0, 8) + '…',
+    })),
+    recentProjectPaths: settings.recentProjectPaths ?? [],
+    lastProjectId: settings.lastProjectId,
+    workspaceRoot: ARIS_WORKSPACE_ROOT,
   }
 })
 
 export const saveApiKey = createServerFn({ method: 'POST' })
-  .validator((data: { apiKey: string; defaultModel?: string }) => data)
+  .validator((data: { apiKey: string; label?: string; defaultModel?: string }) => data)
   .handler(async ({ data }) => {
     const apiKey = data.apiKey.trim()
-    if (!apiKey) {
-      throw new Error('API key is required.')
-    }
+    if (!apiKey) throw new Error('API key is required.')
     await validateApiKey(apiKey)
-    const existing = await readSettings()
-    await writeSettings({
-      ...existing,
-      cursorApiKey: apiKey,
-      defaultModel: data.defaultModel ?? existing.defaultModel,
+    await upsertAccount({
+      label: data.label?.trim() || 'Default',
+      apiKey,
+      makeActive: true,
     })
+    if (data.defaultModel) {
+      const settings = await readSettings()
+      await writeSettings({ ...settings, defaultModel: data.defaultModel })
+    }
     return { ok: true }
   })
+
+export const addAccountFn = createServerFn({ method: 'POST' })
+  .validator((data: { label: string; apiKey: string }) => data)
+  .handler(async ({ data }) => {
+    await validateApiKey(data.apiKey.trim())
+    return upsertAccount({
+      label: data.label.trim() || 'Account',
+      apiKey: data.apiKey.trim(),
+      makeActive: true,
+    })
+  })
+
+export const setActiveAccountFn = createServerFn({ method: 'POST' })
+  .validator((data: { accountId: string }) => data)
+  .handler(async ({ data }) => setActiveAccount(data.accountId))
+
+export const removeAccountFn = createServerFn({ method: 'POST' })
+  .validator((data: { accountId: string }) => data)
+  .handler(async ({ data }) => removeAccount(data.accountId))
+
+export const setDefaultModelFn = createServerFn({ method: 'POST' })
+  .validator((data: { model: string }) => data)
+  .handler(async ({ data }) => {
+    const settings = await readSettings()
+    await writeSettings({ ...settings, defaultModel: data.model })
+    return { ok: true }
+  })
+
+export const listModelsFn = createServerFn({ method: 'GET' }).handler(async () => {
+  const settings = await readSettings()
+  const apiKey = getActiveApiKey(settings)
+  if (!apiKey) return { models: [] as Array<{ id: string; displayName?: string }> }
+  const models = await listModels(apiKey)
+  return {
+    models: models.map((m) => ({
+      id: m.id,
+      displayName: (m as { displayName?: string }).displayName ?? m.id,
+    })),
+  }
+})
 
 export const createSession = createServerFn({ method: 'POST' })
   .validator((data: { projectId?: string }) => data ?? {})
@@ -88,16 +162,13 @@ export const createSession = createServerFn({ method: 'POST' })
     }
 
     const workspace = await createSessionWorkspace()
-    return { ...workspace, projectId: undefined, projectName: undefined, projectMode: undefined }
+    return {
+      ...workspace,
+      projectId: undefined,
+      projectName: undefined,
+      projectMode: undefined,
+    }
   })
-
-export const bootstrapSessionTasks = createServerFn({ method: 'POST' })
-  .validator((data: { prompt: string }) => data)
-  .handler(async ({ data }) => {
-    return createDefaultTaskGraph(data.prompt)
-  })
-
-// --- Projects (living products) ---
 
 export const listProjects = createServerFn({ method: 'GET' }).handler(async () => {
   return readProjectsRegistry()
@@ -107,14 +178,142 @@ export const createProjectFn = createServerFn({ method: 'POST' })
   .validator(
     (data: {
       name: string
-      workspacePath: string
-      mode?: ProjectMode
+      parentDir?: string
       description?: string
+      mode?: ProjectMode
+      workspacePath?: string
     }) => data,
   )
-  .handler(async ({ data }) => createProject(data))
+  .handler(async ({ data }) => {
+    if (data.workspacePath) {
+      return openProjectFromPath(data.workspacePath)
+    }
+    return createProjectInFolder({
+      name: data.name,
+      parentDir: data.parentDir,
+      description: data.description,
+    })
+  })
 
-// --- Notes (private vs agent) ---
+export const openProjectFn = createServerFn({ method: 'POST' })
+  .validator((data: { path: string }) => data)
+  .handler(async ({ data }) => openProjectFromPath(data.path))
+
+export const createScratchFn = createServerFn({ method: 'POST' }).handler(async () => {
+  return createScratchProject()
+})
+
+export const getProjectFn = createServerFn({ method: 'POST' })
+  .validator((data: { projectId: string }) => data)
+  .handler(async ({ data }) => getProject(data.projectId))
+
+export const setLastProjectFn = createServerFn({ method: 'POST' })
+  .validator((data: { projectId: string }) => data)
+  .handler(async ({ data }) => {
+    const settings = await readSettings()
+    await writeSettings({ ...settings, lastProjectId: data.projectId })
+    return { ok: true }
+  })
+
+export const getChatHistoryFn = createServerFn({ method: 'POST' })
+  .validator((data: { projectId: string }) => data)
+  .handler(async ({ data }) => {
+    const project = await getProject(data.projectId)
+    if (!project) return { messages: [] }
+    return { messages: await readChatHistory(project.workspacePath) }
+  })
+
+export const appendChatFn = createServerFn({ method: 'POST' })
+  .validator(
+    (data: {
+      projectId: string
+      entry: { role: string; content: string; id?: string }
+    }) => data,
+  )
+  .handler(async ({ data }) => {
+    const project = await getProject(data.projectId)
+    if (!project) throw new Error('Project not found.')
+    await appendChatLine(project.workspacePath, {
+      ...data.entry,
+      at: new Date().toISOString(),
+    })
+    return { ok: true }
+  })
+
+export const listBoardTasksFn = createServerFn({ method: 'POST' })
+  .validator((data: { projectId: string }) => data)
+  .handler(async ({ data }) => {
+    const project = await getProject(data.projectId)
+    if (!project) return { tasks: [], columns: BOARD_COLUMNS }
+    const store = await readTasksStore(project.workspacePath)
+    return { tasks: store.tasks, columns: BOARD_COLUMNS }
+  })
+
+export const createBoardTaskFn = createServerFn({ method: 'POST' })
+  .validator(
+    (data: {
+      projectId: string
+      title: string
+      description?: string
+      priority?: TaskPriority
+      column?: BoardColumn
+    }) => data,
+  )
+  .handler(async ({ data }) => {
+    const project = await getProject(data.projectId)
+    if (!project) throw new Error('Project not found.')
+    return createBoardTask(project.workspacePath, data)
+  })
+
+export const moveBoardTaskFn = createServerFn({ method: 'POST' })
+  .validator(
+    (data: {
+      projectId: string
+      taskId: string
+      column: BoardColumn
+      proofLabel?: ProofLabel
+    }) => data,
+  )
+  .handler(async ({ data }) => {
+    const project = await getProject(data.projectId)
+    if (!project) throw new Error('Project not found.')
+    return updateBoardTask(project.workspacePath, data.taskId, {
+      column: data.column,
+      proofLabel: data.proofLabel,
+    })
+  })
+
+export const promotePlanFn = createServerFn({ method: 'POST' })
+  .validator(
+    (data: {
+      projectId: string
+      items: Array<{ title: string; description?: string; priority?: TaskPriority }>
+    }) => data,
+  )
+  .handler(async ({ data }) => {
+    const project = await getProject(data.projectId)
+    if (!project) throw new Error('Project not found.')
+    return createTasksFromPlan(project.workspacePath, data.items)
+  })
+
+export const getPhaseRunContextFn = createServerFn({ method: 'POST' })
+  .validator((data: { projectId: string; taskId: string; column: BoardColumn }) => data)
+  .handler(async ({ data }) => {
+    const project = await getProject(data.projectId)
+    if (!project) throw new Error('Project not found.')
+    const store = await readTasksStore(project.workspacePath)
+    const task = store.tasks.find((t) => t.id === data.taskId)
+    if (!task) throw new Error('Task not found.')
+    return {
+      phaseHint: phasePrompt(data.column, task),
+      mode: sdkModeForColumn(data.column),
+      task,
+    }
+  })
+
+export const cancelAgentRunFn = createServerFn({ method: 'POST' })
+  .validator((data: { runKey: string }) => data)
+  .handler(async ({ data }) => ({ ok: cancelRun(data.runKey) }))
 
 export const listNotes = createServerFn({ method: 'GET' }).handler(async () => {
   return readNotesRegistry()
@@ -154,11 +353,15 @@ export const getAgentNotesForContext = createServerFn({ method: 'POST' })
   .validator((data: { projectId?: string; serverId?: string }) => data)
   .handler(async ({ data }) => listAgentVisibleNotes(data))
 
-// --- Servers (SSH) ---
-
 export const listServers = createServerFn({ method: 'GET' }).handler(async () => {
   return readServersRegistry()
 })
+
+export const listServersForProjectFn = createServerFn({ method: 'POST' })
+  .validator((data: { projectId?: string }) => data ?? {})
+  .handler(async ({ data }) => ({
+    servers: await listServersForProject(data?.projectId),
+  }))
 
 export const registerServerFn = createServerFn({ method: 'POST' })
   .validator(
@@ -170,57 +373,16 @@ export const registerServerFn = createServerFn({ method: 'POST' })
       authType: ServerAuthType
       secret: string
       tags?: string[]
+      projectIds?: string[]
     }) => data,
   )
   .handler(async ({ data }) => registerServer(data))
 
-/** Seed ~/.aris with demo project, agent note, and settings for local screenshots. */
-export const seedDemoData = createServerFn({ method: 'POST' }).handler(async () => {
-  const demoRoot = join(homedir(), '.aris', 'demo', 'specialty-coffee')
-  await mkdir(join(demoRoot, 'specs', 'active'), { recursive: true })
-
-  const registry = await readProjectsRegistry()
-  let project = registry.projects.find((p) => p.name === 'Specialty Coffee Site')
-
-  if (!project) {
-    project = await createProject({
-      name: 'Specialty Coffee Site',
-      workspacePath: demoRoot,
-      mode: 'continue',
-      description: 'Demo project for Aris — continue adding features over time.',
-    })
-  }
-
-  const notes = await readNotesRegistry()
-  const hasAgentNote = notes.notes.some(
-    (n) => n.projectId === project!.id && n.visibility === 'agent',
+export const updateServerProjectsFn = createServerFn({ method: 'POST' })
+  .validator((data: { serverId: string; projectIds: string[] }) => data)
+  .handler(async ({ data }) =>
+    updateServerProjects(data.serverId, data.projectIds),
   )
-
-  if (!hasAgentNote) {
-    await createNote({
-      title: 'Brand direction',
-      body: 'Warm earth tones, single-origin focus, hero with brewing methods. Avoid stock photos.',
-      visibility: 'agent',
-      projectId: project.id,
-      tags: ['design', 'brand'],
-    })
-  }
-
-  const existing = await readSettings()
-  if (!existing.cursorApiKey?.trim()) {
-    await writeSettings({
-      ...existing,
-      cursorApiKey: 'demo_key_for_local_screenshots',
-      defaultModel: 'composer-2.5',
-    })
-  }
-
-  return {
-    ok: true,
-    projectId: project.id,
-    workspacePath: project.workspacePath,
-  }
-})
 
 export const beginServerTaskFn = createServerFn({ method: 'POST' })
   .validator(

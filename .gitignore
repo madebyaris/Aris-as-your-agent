@@ -7,10 +7,12 @@ dist
 
 # Aris local data (never commit)
 .aris/
+aris-secrets/
 
-# SSH secrets and backups (always under .aris/ but explicit)
+# SSH secrets and backups (explicit; includes legacy + current roots)
 **/.aris/secrets/
 **/.aris/backups/
+**/aris-secrets/
 
 # OS
 .DS_Store
