@@ -38,6 +38,9 @@ Accounts
 |------|----------|
 | Board | Columns run pipeline phases; card detail shows run stream |
 | Chat | Immediate instruct; **Promote to board** creates cards |
+| Split | Board + Chat side-by-side (desktop); resizable panels |
+
+URL search on `/studio/$projectId`: `?view=board` (default) · `chat` · `split`. Mobile forces a single pane (Split falls back to Board).
 
 Columns: `Backlog → Research → Plan → Build → Review → Done`
 
@@ -55,6 +58,7 @@ Columns: `Backlog → Research → Plan → Build → Review → Done`
 ## Components
 
 - Shell: shadcn Sidebar + global CommandDialog
-- Chat: document-flow messages, starter prompts, tool activity, streaming composer
-- Board: dnd-kit columns, execution toolbar, compact task cards, phase detail sheet
-- Notes / Servers / Accounts: list-first surfaces with right-sheet creation
+- Chat: markdown document-flow messages, starter prompts, structured tool activity, streaming composer, Idle/Working/Error status
+- Board: dnd-kit columns, execution toolbar, compact task cards, phase-aware empty states, phase detail sheet
+- Master: taskbar center opens control-plane sheet (status + shortcuts; agent loop later)
+- Notes / Servers / Accounts / project create-open: list-first surfaces with right-sheet creation

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import {
   cancelAgentRunFn,
   getChatHistoryFn,
@@ -22,10 +24,11 @@ import {
   Search,
   Square,
   UserRound,
+  Wrench,
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useQueryClient } from '@tanstack/react-query'
 import { useStudioRun } from './studio-run-context'
+import { cn } from '@/lib/utils'
 
 type ChatMessage = {
   id: string
@@ -33,21 +36,57 @@ type ChatMessage = {
   content: string
 }
 
+type ToolActivity = {
+  id: string
+  name: string
+  status: string
+}
+
 const STARTER_PROMPTS = [
-  { icon: Search, label: 'Audit this project', prompt: 'Audit this project and identify the highest-impact next improvement.' },
-  { icon: Code2, label: 'Build a feature', prompt: 'Help me shape and build a new feature for this project.' },
-  { icon: CheckCircle2, label: 'Review current work', prompt: 'Review the current work and verify what is actually complete.' },
+  {
+    icon: Search,
+    label: 'Audit this project',
+    prompt: 'Audit this project and identify the highest-impact next improvement.',
+  },
+  {
+    icon: Code2,
+    label: 'Build a feature',
+    prompt: 'Help me shape and build a new feature for this project.',
+  },
+  {
+    icon: CheckCircle2,
+    label: 'Review current work',
+    prompt: 'Review the current work and verify what is actually complete.',
+  },
 ] as const
 
-export function StudioChat({ projectId }: { projectId: string }) {
+function MarkdownBody({ content }: { content: string }) {
+  return (
+    <div className="aris-prose text-sm leading-6">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+    </div>
+  )
+}
+
+export function StudioChat({
+  projectId,
+  compactHeader = false,
+  showSideBorder = false,
+}: {
+  projectId: string
+  compactHeader?: boolean
+  showSideBorder?: boolean
+}) {
   const queryClient = useQueryClient()
-  const { setActiveRun, clearRun } = useStudioRun()
+  const { activeRun, setActiveRun, clearRun } = useStudioRun()
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [streaming, setStreaming] = useState('')
-  const [activity, setActivity] = useState<string[]>([])
+  const [activity, setActivity] = useState<ToolActivity[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
+  const [streamError, setStreamError] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const runKey = `${projectId}:chat`
 
   const settingsQuery = useQuery({ queryKey: ['settings'], queryFn: getSettings })
   const historyQuery = useQuery({
@@ -69,7 +108,7 @@ export function StudioChat({ projectId }: { projectId: string }) {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, streaming])
+  }, [messages, streaming, activity])
 
   const promoteMutation = useMutation({
     mutationFn: (text: string) => {
@@ -87,9 +126,16 @@ export function StudioChat({ projectId }: { projectId: string }) {
     },
   })
 
+  const status: 'idle' | 'working' | 'error' = streamError
+    ? 'error'
+    : isStreaming || activeRun?.runKey === runKey
+      ? 'working'
+      : 'idle'
+
   async function sendMessage(message: string) {
     if (!message.trim() || isStreaming) return
     setIsStreaming(true)
+    setStreamError(false)
     setStreaming('')
     setActivity([])
     setMessages((m) => [
@@ -98,7 +144,6 @@ export function StudioChat({ projectId }: { projectId: string }) {
     ])
     setInput('')
 
-    const runKey = `${projectId}:chat`
     setActiveRun({ runKey, label: 'Chat', projectId })
     try {
       const response = await fetch('/api/agent', {
@@ -134,9 +179,25 @@ export function StudioChat({ projectId }: { projectId: string }) {
             setStreaming(assistantText)
           }
           if (eventName === 'tool_call' && payload.type === 'tool_call') {
-            setActivity((a) => [...a, `${payload.name} (${payload.status})`])
+            setActivity((a) => {
+              const existing = a.findIndex(
+                (item) => item.name === payload.name && item.status !== 'completed',
+              )
+              const next: ToolActivity = {
+                id: `${payload.name}-${a.length}`,
+                name: payload.name,
+                status: payload.status,
+              }
+              if (existing >= 0) {
+                const copy = [...a]
+                copy[existing] = { ...copy[existing], status: payload.status }
+                return copy
+              }
+              return [...a, next]
+            })
           }
           if (eventName === 'error' && payload.type === 'error') {
+            setStreamError(true)
             toast.error(payload.message)
           }
           if (eventName === 'done') {
@@ -156,6 +217,7 @@ export function StudioChat({ projectId }: { projectId: string }) {
       }
       await queryClient.invalidateQueries({ queryKey: ['chat', projectId] })
     } catch (e) {
+      setStreamError(true)
       toast.error(e instanceof Error ? e.message : 'Chat failed')
     } finally {
       setIsStreaming(false)
@@ -165,15 +227,39 @@ export function StudioChat({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-muted/15">
-      <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b bg-background px-4">
+    <div
+      className={cn(
+        'flex min-h-0 flex-1 flex-col bg-muted/15',
+        showSideBorder && 'border-l border-border/60',
+      )}
+    >
+      <div
+        className={cn(
+          'flex shrink-0 items-center justify-between gap-2 border-b bg-background px-4',
+          compactHeader ? 'h-10' : 'h-11',
+        )}
+      >
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="size-1.5 rounded-full bg-status-success" />
-          <span>Ready</span>
+          <span
+            className={cn(
+              'size-1.5 rounded-full',
+              status === 'working' && 'bg-status-warning animate-pulse',
+              status === 'error' && 'bg-destructive',
+              status === 'idle' && 'bg-muted-foreground/35',
+            )}
+          />
+          <span>
+            {status === 'working' ? 'Working' : status === 'error' ? 'Error' : 'Idle'}
+          </span>
           <span className="text-border">/</span>
           <Badge variant="outline" className="h-5 font-mono text-[10px] font-normal">
             {settingsQuery.data?.defaultModel ?? 'composer-2.5'}
           </Badge>
+          {!settingsQuery.data?.hasApiKey ? (
+            <Badge variant="secondary" className="h-5 font-normal text-[10px]">
+              No provider
+            </Badge>
+          ) : null}
         </div>
         {isStreaming ? (
           <Button
@@ -181,9 +267,9 @@ export function StudioChat({ projectId }: { projectId: string }) {
             variant="outline"
             className="h-7 text-xs text-destructive hover:text-destructive"
             onClick={() => {
-              const runKey = `${projectId}:chat`
               clearRun(runKey)
               void cancelAgentRunFn({ data: { runKey } })
+              setIsStreaming(false)
             }}
           >
             <Square className="size-3" />
@@ -202,8 +288,8 @@ export function StudioChat({ projectId }: { projectId: string }) {
                 </div>
                 <h2 className="text-lg font-semibold tracking-tight">What should we work on?</h2>
                 <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-                  Give Aris a direct instruction, ask for an audit, or shape a plan before
-                  adding it to the board.
+                  Give Aris a direct instruction, ask for an audit, or shape a plan before adding
+                  it to the board.
                 </p>
               </div>
               <div className="mx-auto mt-6 grid max-w-xl gap-2 sm:grid-cols-3">
@@ -244,28 +330,26 @@ export function StudioChat({ projectId }: { projectId: string }) {
                   <span className="text-xs font-medium">
                     {msg.role === 'user' ? 'You' : 'Aris'}
                   </span>
-                {msg.role === 'assistant' ? (
-                  <Button
-                    type="button"
-                    size="xs"
-                    variant="ghost"
-                    className="h-6 px-1.5 text-[10px] text-muted-foreground"
-                    onClick={() => promoteMutation.mutate(msg.content)}
-                  >
-                    <ListPlus className="size-3" />
-                    Add to board
-                  </Button>
-                ) : null}
-              </div>
-                <div
-                  className={
-                    msg.role === 'user'
-                      ? 'rounded-lg bg-muted/65 px-3.5 py-3 text-sm leading-6'
-                      : 'text-sm leading-6'
-                  }
-                >
-                  <pre className="m-0 whitespace-pre-wrap font-sans">{msg.content}</pre>
+                  {msg.role === 'assistant' ? (
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="ghost"
+                      className="h-6 px-1.5 text-[10px] text-muted-foreground"
+                      onClick={() => promoteMutation.mutate(msg.content)}
+                    >
+                      <ListPlus className="size-3" />
+                      Add to board
+                    </Button>
+                  ) : null}
                 </div>
+                {msg.role === 'user' ? (
+                  <div className="rounded-lg bg-muted/65 px-3.5 py-3 text-sm leading-6">
+                    <pre className="m-0 whitespace-pre-wrap font-sans">{msg.content}</pre>
+                  </div>
+                ) : (
+                  <MarkdownBody content={msg.content} />
+                )}
               </div>
             </article>
           ))}
@@ -282,20 +366,37 @@ export function StudioChat({ projectId }: { projectId: string }) {
                     Working
                   </span>
                 </div>
-                <pre className="m-0 whitespace-pre-wrap font-sans text-sm leading-6">
-                  {streaming}
-                </pre>
+                <MarkdownBody content={streaming} />
               </div>
             </article>
           ) : null}
           {activity.length > 0 ? (
-            <details className="mb-3 rounded-lg border bg-background">
-              <summary className="cursor-pointer px-3 py-2 text-xs font-medium text-muted-foreground">
+            <details open={isStreaming} className="mb-3 rounded-lg border bg-background">
+              <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 text-xs font-medium text-muted-foreground">
+                <Wrench className="size-3.5" />
                 {activity.length} tool {activity.length === 1 ? 'event' : 'events'}
               </summary>
-              <ul className="space-y-1 border-t px-3 py-2 font-mono text-[10px] text-muted-foreground">
+              <ul className="space-y-1.5 border-t px-3 py-2">
                 {activity.map((item) => (
-                  <li key={item}>{item}</li>
+                  <li
+                    key={item.id}
+                    className="flex items-center gap-2 rounded-md bg-muted/40 px-2 py-1.5 font-mono text-[10px]"
+                  >
+                    <span className="truncate font-medium text-foreground/80">{item.name}</span>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'ml-auto h-4 shrink-0 px-1.5 font-normal text-[9px]',
+                        item.status === 'completed' || item.status === 'done'
+                          ? 'border-status-success/40 text-status-success'
+                          : item.status === 'error' || item.status === 'failed'
+                            ? 'border-destructive/40 text-destructive'
+                            : 'text-muted-foreground',
+                      )}
+                    >
+                      {item.status}
+                    </Badge>
+                  </li>
                 ))}
               </ul>
             </details>

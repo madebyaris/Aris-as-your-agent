@@ -25,6 +25,7 @@ Living milestone tracker. Update at the end of every milestone with honest proof
 | Planned — Always-on node | pending | 2026-07-10 | [ADR 011](./decisions/011-always-on-node.md): daemon for local/workstation; UI optional; after ADR 010 |
 | Planned — Cloudflare remote / phone | pending | 2026-07-10 | [ADR 012](./decisions/012-cloudflare-zero-trust-remote.md): Zero Trust + Tunnel → `agent.madebyaris.com` |
 | Planned — Node-local data | pending | 2026-07-10 | [ADR 013](./decisions/013-node-local-data.md): decentralized SoT; secrets never sync; optional non-secret sync |
+| M8 — Studio UX polish | verified | 2026-07-10 | Split Board/Chat (`?view=`), markdown chat, Idle/Working status, Master sheet shell, create/open Sheets, phase empty copy, Cmd+K project actions. Evidence: `pnpm --filter web typecheck` OK; vitest 7/7; build OK; screenshots `/opt/cursor/artifacts/assets/m8-*.png` |
 
 ## Blockers
 

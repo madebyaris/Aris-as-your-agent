@@ -109,7 +109,12 @@
 - [ ] Phase progress bar (Research → Brief → Tasks → Build)
 - [ ] TanStack Virtual for message list
 - [ ] TanStack Form for settings
-- [ ] Mobile-responsive layout
+- [x] Mobile-responsive layout (sidebar sheet + single-pane project views)
+- [x] Split Board/Chat view + `?view=` URL state (M8)
+- [x] Markdown assistant messages + structured tool activity (M8)
+- [x] Honest chat/run status wired to StudioRun (M8)
+- [x] Master control-plane sheet shell (status only; full agent later) (M8)
+- [x] Project create/open as Sheets (M8)
 
 ---
 
@@ -230,6 +235,7 @@
 |------|---------|-------|
 | 2026-07-06 | Cloud agent | Phase 0 scaffold. Added projects, notes, server packages + PRD philosophy. |
 | 2026-07-10 | Cursor | Aris Studio v1 implemented (M0–M7). Live agent smoke still needs API key. |
+| 2026-07-10 | Cloud agent | M8 UX polish: Split view, markdown chat, Master sheet shell, Sheets for create/open. |
 
 ### Quick resume commands
 

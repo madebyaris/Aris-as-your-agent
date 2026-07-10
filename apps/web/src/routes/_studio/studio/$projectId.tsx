@@ -19,7 +19,6 @@ import {
   listBoardTasksFn,
   moveBoardTaskFn,
 } from '#/server/aris'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,22 +31,46 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from '@/components/ui/resizable'
 import { StudioChat } from '@/components/studio/StudioChat'
 import { useStudioRun } from '@/components/studio/studio-run-context'
+import { useIsMobile } from '@/hooks/use-mobile'
 import type { BoardColumn, BoardTask, ProofLabel } from '@aris/tasks'
 import { toast } from 'sonner'
 import {
   ArrowLeft,
   CheckCircle2,
   CircleDot,
+  Columns2,
   Folder,
+  LayoutGrid,
   Loader2,
+  MessageSquare,
   Plus,
   Square,
 } from 'lucide-react'
 import type { ArisStreamEvent } from '@aris/stream'
+import { cn } from '@/lib/utils'
+
+const VIEWS = ['board', 'chat', 'split'] as const
+type ProjectView = (typeof VIEWS)[number]
+
+type ProjectSearch = {
+  view?: ProjectView
+}
 
 export const Route = createFileRoute('/_studio/studio/$projectId')({
+  validateSearch: (search: Record<string, unknown>): ProjectSearch => {
+    const view = search.view
+    if (view === 'chat' || view === 'split' || view === 'board') {
+      return { view }
+    }
+    return {}
+  },
   component: ProjectWorkspacePage,
 })
 
@@ -58,6 +81,15 @@ const COLUMN_LABELS: Record<BoardColumn, string> = {
   build: 'Build',
   review: 'Review',
   done: 'Done',
+}
+
+const COLUMN_EMPTY: Record<BoardColumn, string> = {
+  backlog: 'Capture work here before it enters the pipeline.',
+  research: 'Drop here to start research.',
+  plan: 'Drop here to shape a plan.',
+  build: 'Drop here to begin implementation.',
+  review: 'Drop here to verify with proof.',
+  done: 'Completed work lands here.',
 }
 
 const BOARD_COLUMNS = [
@@ -71,12 +103,26 @@ const BOARD_COLUMNS = [
 
 function ProjectWorkspacePage() {
   const { projectId } = Route.useParams()
+  const { view: requestedView } = Route.useSearch()
+  const navigate = Route.useNavigate()
+  const isMobile = useIsMobile()
+  const resolvedView: ProjectView = requestedView ?? 'board'
+  const view: ProjectView =
+    isMobile && resolvedView === 'split' ? 'board' : resolvedView
+
   const projectQuery = useQuery({
     queryKey: ['project', projectId],
     queryFn: () => getProjectFn({ data: { projectId } }),
   })
 
   const project = projectQuery.data
+
+  function setView(next: ProjectView) {
+    void navigate({
+      search: (prev) => ({ ...prev, view: next }),
+      replace: true,
+    })
+  }
 
   if (projectQuery.isLoading) {
     return (
@@ -104,7 +150,7 @@ function ProjectWorkspacePage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex min-h-[58px] shrink-0 items-center gap-3 border-b px-3 py-2.5 sm:px-4">
+      <div className="flex min-h-[52px] shrink-0 items-center gap-2 border-b px-3 py-2 sm:px-4">
         <Button asChild variant="ghost" size="icon-sm" className="shrink-0">
           <Link to="/studio" aria-label="Back to projects">
             <ArrowLeft className="size-4" />
@@ -115,7 +161,9 @@ function ProjectWorkspacePage() {
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
-            <h1 className="truncate text-sm font-semibold tracking-tight">{project.name}</h1>
+            <h1 className="truncate text-sm font-semibold tracking-tight" title={project.workspacePath}>
+              {project.name}
+            </h1>
             <Badge variant="outline" className="h-5 shrink-0 font-normal text-[10px]">
               {project.mode}
             </Badge>
@@ -125,36 +173,65 @@ function ProjectWorkspacePage() {
               </Badge>
             ) : null}
           </div>
-          <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">
+          <p className="mt-0.5 hidden truncate font-mono text-[10px] text-muted-foreground xl:block">
             {project.workspacePath}
           </p>
         </div>
+
+        <div
+          role="tablist"
+          aria-label="Workspace view"
+          className="flex shrink-0 items-center rounded-lg border bg-muted/40 p-0.5"
+        >
+          {(
+            [
+              { id: 'board' as const, label: 'Board', icon: LayoutGrid, hideOnMobile: false },
+              { id: 'chat' as const, label: 'Chat', icon: MessageSquare, hideOnMobile: false },
+              { id: 'split' as const, label: 'Split', icon: Columns2, hideOnMobile: true },
+            ] as const
+          ).map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={view === item.id}
+              onClick={() => setView(item.id)}
+              className={cn(
+                'inline-flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[11px] font-medium transition-colors',
+                item.hideOnMobile && 'hidden md:inline-flex',
+                view === item.id
+                  ? 'bg-background text-foreground shadow-xs'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <item.icon className="size-3.5" />
+              <span className="hidden sm:inline">{item.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
-      <Tabs defaultValue="board" className="flex flex-1 flex-col min-h-0">
-        <div className="shrink-0 border-b bg-background px-4">
-          <TabsList className="h-10 rounded-none bg-transparent p-0">
-            <TabsTrigger
-              value="board"
-              className="h-10 rounded-none border-b-2 border-transparent bg-transparent px-3 text-xs shadow-none data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-            >
-              Board
-            </TabsTrigger>
-            <TabsTrigger
-              value="chat"
-              className="h-10 rounded-none border-b-2 border-transparent bg-transparent px-3 text-xs shadow-none data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-            >
-              Chat
-            </TabsTrigger>
-          </TabsList>
+      {view === 'board' ? (
+        <BoardPanel projectId={projectId} workspacePath={project.workspacePath} />
+      ) : null}
+      {view === 'chat' ? <StudioChat projectId={projectId} compactHeader /> : null}
+      {view === 'split' ? (
+        <div className="flex min-h-0 flex-1">
+          <ResizablePanelGroup
+            id={`project-split-${projectId}`}
+            orientation="horizontal"
+            className="min-h-0 flex-1"
+          >
+            <ResizablePanel id="board" defaultSize="58%" minSize="36%" className="min-h-0 min-w-0">
+              <BoardPanel projectId={projectId} workspacePath={project.workspacePath} />
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel id="chat" defaultSize="42%" minSize="28%" className="min-h-0 min-w-0">
+              <StudioChat projectId={projectId} compactHeader showSideBorder />
+            </ResizablePanel>
+          </ResizablePanelGroup>
         </div>
-        <TabsContent value="board" className="flex-1 min-h-0 m-0 data-[state=inactive]:hidden">
-          <BoardPanel projectId={projectId} workspacePath={project.workspacePath} />
-        </TabsContent>
-        <TabsContent value="chat" className="flex-1 min-h-0 m-0 data-[state=inactive]:hidden">
-          <StudioChat projectId={projectId} />
-        </TabsContent>
-      </Tabs>
+      ) : null}
     </div>
   )
 }
@@ -306,7 +383,7 @@ function BoardPanel({
   return (
     <div className="flex min-h-0 flex-1 flex-col bg-muted/20">
       <div className="flex min-h-13 shrink-0 flex-col gap-3 border-b bg-background px-4 py-2.5 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5">
             <CircleDot className="size-3.5" />
             {tasks.length} tasks
@@ -320,6 +397,9 @@ function BoardPanel({
               {activeWorkCount} in progress
             </Badge>
           ) : null}
+          <span className="hidden text-[11px] text-muted-foreground/80 lg:inline">
+            Moving into Research–Review starts a run
+          </span>
         </div>
         <form
           className="flex flex-1 gap-2 sm:ml-auto sm:max-w-md"
@@ -463,7 +543,7 @@ function BoardColumnView({
       <div className="flex flex-1 flex-col gap-2 overflow-y-auto px-2 pb-2">
         {tasks.length === 0 ? (
           <div className="flex min-h-24 flex-1 items-center justify-center rounded-lg border border-dashed border-border/80 px-4 text-center text-[11px] leading-5 text-muted-foreground/70">
-            Drop a task here
+            {COLUMN_EMPTY[column]}
           </div>
         ) : (
           tasks.map((task) => (
@@ -520,4 +600,3 @@ function TaskCard({ task, onOpen }: { task: BoardTask; onOpen: () => void }) {
     </Card>
   )
 }
-

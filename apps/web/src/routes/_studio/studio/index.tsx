@@ -13,14 +13,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog'
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
 import {
   ArrowRight,
@@ -140,111 +139,110 @@ function StudioHomePage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Dialog open={openOpen} onOpenChange={setOpenOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline">
-                <FolderOpen className="size-4" />
-                Open folder
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Open existing project</DialogTitle>
-                <DialogDescription>
-                  Enter an absolute folder path. Aris adds a local{' '}
-                  <code className="font-mono text-xs">.aris-workspace</code> sidecar.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-2">
-                <Label htmlFor="open-path">Path</Label>
-                <Input
-                  id="open-path"
-                  value={openPath}
-                  onChange={(e) => setOpenPath(e.target.value)}
-                  placeholder="/Users/you/code/my-app"
-                  className="font-mono text-xs"
-                />
-                {(settingsQuery.data?.recentProjectPaths?.length ?? 0) > 0 ? (
-                  <div className="flex flex-wrap gap-1 pt-1">
-                    {settingsQuery.data!.recentProjectPaths!.map((p) => (
-                      <Button
-                        key={p}
-                        type="button"
-                        size="xs"
-                        variant="secondary"
-                    className="max-w-full truncate font-mono text-[10px]"
-                        onClick={() => setOpenPath(p)}
-                      >
-                        {p}
-                      </Button>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="ghost" onClick={() => setOpenOpen(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  disabled={!openPath.trim() || openMutation.isPending}
-                  onClick={() => openMutation.mutate()}
-                >
-                  Open
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="size-4" />
-                New project
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create project</DialogTitle>
-                <DialogDescription>
-                  Create a folder with an Aris sidecar, ready for board and chat history.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <Label htmlFor="proj-name">Name</Label>
-                  <Input
-                    id="proj-name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Specialty Coffee Site"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="parent">Parent directory (optional)</Label>
-                  <Input
-                    id="parent"
-                    value={parentDir}
-                    onChange={(e) => setParentDir(e.target.value)}
-                    placeholder={settingsQuery.data?.workspaceRoot}
-                    className="font-mono text-xs"
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="ghost" onClick={() => setCreateOpen(false)}>
-                  Cancel
-                </Button>
-                <Button
-                  disabled={!name.trim() || createMutation.isPending}
-                  onClick={() => createMutation.mutate()}
-                >
-                  Create
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button variant="outline" onClick={() => setOpenOpen(true)}>
+            <FolderOpen className="size-4" />
+            Open folder
+          </Button>
+          <Button onClick={() => setCreateOpen(true)}>
+            <Plus className="size-4" />
+            New project
+          </Button>
         </div>
       </div>
+
+      <Sheet open={openOpen} onOpenChange={setOpenOpen}>
+        <SheetContent className="flex w-full flex-col sm:max-w-md">
+          <SheetHeader className="border-b">
+            <SheetTitle>Open existing project</SheetTitle>
+            <SheetDescription>
+              Enter an absolute folder path. Aris adds a local{' '}
+              <code className="font-mono text-xs">.aris-workspace</code> sidecar.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 space-y-3 overflow-y-auto p-4">
+            <div className="space-y-2">
+              <Label htmlFor="open-path">Path</Label>
+              <Input
+                id="open-path"
+                value={openPath}
+                onChange={(e) => setOpenPath(e.target.value)}
+                placeholder="/Users/you/code/my-app"
+                className="font-mono text-xs"
+              />
+            </div>
+            {(settingsQuery.data?.recentProjectPaths?.length ?? 0) > 0 ? (
+              <div className="flex flex-wrap gap-1">
+                {settingsQuery.data!.recentProjectPaths!.map((p) => (
+                  <Button
+                    key={p}
+                    type="button"
+                    size="xs"
+                    variant="secondary"
+                    className="max-w-full truncate font-mono text-[10px]"
+                    onClick={() => setOpenPath(p)}
+                  >
+                    {p}
+                  </Button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+          <SheetFooter className="flex-row justify-end border-t">
+            <Button type="button" variant="ghost" onClick={() => setOpenOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!openPath.trim() || openMutation.isPending}
+              onClick={() => openMutation.mutate()}
+            >
+              Open
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet open={createOpen} onOpenChange={setCreateOpen}>
+        <SheetContent className="flex w-full flex-col sm:max-w-md">
+          <SheetHeader className="border-b">
+            <SheetTitle>Create project</SheetTitle>
+            <SheetDescription>
+              Create a folder with an Aris sidecar, ready for board and chat history.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 space-y-3 overflow-y-auto p-4">
+            <div className="space-y-2">
+              <Label htmlFor="proj-name">Name</Label>
+              <Input
+                id="proj-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Specialty Coffee Site"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="parent">Parent directory (optional)</Label>
+              <Input
+                id="parent"
+                value={parentDir}
+                onChange={(e) => setParentDir(e.target.value)}
+                placeholder={settingsQuery.data?.workspaceRoot}
+                className="font-mono text-xs"
+              />
+            </div>
+          </div>
+          <SheetFooter className="flex-row justify-end border-t">
+            <Button type="button" variant="ghost" onClick={() => setCreateOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!name.trim() || createMutation.isPending}
+              onClick={() => createMutation.mutate()}
+            >
+              Create
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <div className="grid min-h-0 gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
         <section className="min-w-0 overflow-hidden rounded-xl border bg-card shadow-xs">
