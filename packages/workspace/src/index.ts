@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises"
+import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join } from "node:path"
 import { randomUUID } from "node:crypto"
@@ -10,6 +10,9 @@ export const ARIS_DEFAULT_PROVIDER = "cursor" as const
 export const ARIS_HOME = join(homedir(), ".aris")
 export const ARIS_SESSIONS_DIR = join(ARIS_HOME, "sessions")
 export const ARIS_SETTINGS_PATH = join(ARIS_HOME, "settings.json")
+/** Master control-plane agent cwd (ADR 008) — not a product repo. */
+export const ARIS_MASTER_DIR = join(ARIS_HOME, "master")
+export const ARIS_MASTER_CHAT_PATH = join(ARIS_MASTER_DIR, "chat.jsonl")
 /** Default parent for new project folders (collision-safe, visible). */
 export const ARIS_WORKSPACE_ROOT = join(homedir(), "aris-workspace")
 /**
@@ -39,6 +42,15 @@ export type ArisSettings = {
   activeAccountId?: string
   recentProjectPaths?: string[]
   lastProjectId?: string
+  /** Cursor SDK agent id for Master control-plane resume (ADR 008). */
+  masterAgentId?: string
+}
+
+export type MasterChatEntry = {
+  role: string
+  content: string
+  id?: string
+  at?: string
 }
 
 export type SessionWorkspace = {
@@ -52,6 +64,44 @@ export async function ensureArisHome() {
   await mkdir(ARIS_SESSIONS_DIR, { recursive: true })
   await mkdir(ARIS_WORKSPACE_ROOT, { recursive: true })
   await mkdir(join(ARIS_SECRETS_ROOT, "servers"), { recursive: true, mode: 0o700 })
+}
+
+/** Ensure Master control-plane cwd exists (ADR 008). */
+export async function ensureMasterDir() {
+  await ensureArisHome()
+  await mkdir(ARIS_MASTER_DIR, { recursive: true })
+  return ARIS_MASTER_DIR
+}
+
+export async function appendMasterChatLine(entry: MasterChatEntry) {
+  await ensureMasterDir()
+  const line = {
+    id: entry.id ?? randomUUID(),
+    role: entry.role,
+    content: entry.content,
+    at: entry.at ?? new Date().toISOString(),
+  }
+  await appendFile(ARIS_MASTER_CHAT_PATH, `${JSON.stringify(line)}\n`, "utf8")
+  return line
+}
+
+export async function readMasterChatHistory(): Promise<MasterChatEntry[]> {
+  try {
+    const raw = await readFile(ARIS_MASTER_CHAT_PATH, "utf8")
+    return raw
+      .split("\n")
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as MasterChatEntry)
+  } catch {
+    return []
+  }
+}
+
+export async function setMasterAgentId(masterAgentId: string): Promise<ArisSettings> {
+  const settings = await readSettings()
+  const next = { ...settings, masterAgentId }
+  await writeSettings(next)
+  return next
 }
 
 function normalizeAccount(raw: ArisAccount & { provider?: ArisProvider }): ArisAccount {

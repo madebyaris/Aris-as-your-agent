@@ -11,7 +11,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@aris/notes": "workspace:*",
+    "@aris/projects": "workspace:*",
+    "@aris/server": "workspace:*",
     "@aris/stream": "workspace:*",
+    "@aris/tasks": "workspace:*",
     "@aris/workspace": "workspace:*",
     "@cursor/sdk": "^1.0.23",
     "@openrouter/ai-sdk-provider": "^3.0.0",

@@ -171,9 +171,21 @@ importers:
 
   packages/agent:
     dependencies:
+      '@aris/notes':
+        specifier: workspace:*
+        version: link:../notes
+      '@aris/projects':
+        specifier: workspace:*
+        version: link:../projects
+      '@aris/server':
+        specifier: workspace:*
+        version: link:../server
       '@aris/stream':
         specifier: workspace:*
         version: link:../stream
+      '@aris/tasks':
+        specifier: workspace:*
+        version: link:../tasks
       '@aris/workspace':
         specifier: workspace:*
         version: link:../workspace

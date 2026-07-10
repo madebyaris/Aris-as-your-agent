@@ -1,5 +1,10 @@
 import { Agent, Cursor } from "@cursor/sdk"
+import type { SDKCustomTool } from "@cursor/sdk"
 import type { StreamEmitter } from "@aris/stream"
+import {
+  ARIS_MASTER_DIR,
+  ensureMasterDir,
+} from "@aris/workspace"
 import {
   defaultModelForProvider,
   resolveArisModelId,
@@ -12,6 +17,11 @@ import {
   streamOpenRouterResponse,
   validateOpenRouterApiKey,
 } from "./openrouter"
+import {
+  buildMasterPrompt,
+  createMasterCustomTools,
+  type MasterToolsContext,
+} from "./master-tools"
 
 export {
   ARIS_DEFAULT_MODEL,
@@ -31,6 +41,22 @@ export {
   type ListedModel,
 } from "./models"
 
+export {
+  buildMasterPrompt,
+  createMasterCustomTools,
+  masterCreateProjectPayload,
+  masterCreateScratchPayload,
+  masterListAgentNotesForProject,
+  masterListNotesPayload,
+  masterListProjectsPayload,
+  masterListServersPayload,
+  masterOpenProjectPayload,
+  masterProjectSummaryPayload,
+  masterStatusPayload,
+  MASTER_SYSTEM_PREFIX,
+  type MasterToolsContext,
+} from "./master-tools"
+
 export type CreateArisAgentOptions = {
   apiKey: string
   workspacePath: string
@@ -38,6 +64,9 @@ export type CreateArisAgentOptions = {
   agentId?: string
   /** Load .cursor/ skills, agents, rules from workspace when present. */
   loadProjectConfig?: boolean
+  /** Local-only Cursor custom tools (ADR 008 Master). */
+  customTools?: Record<string, SDKCustomTool>
+  name?: string
 }
 
 const ARIS_SYSTEM_PREFIX = [
@@ -76,6 +105,7 @@ export async function createOrResumeAgent(options: CreateArisAgentOptions) {
     ...(options.loadProjectConfig !== false
       ? { settingSources: ["project" as const] }
       : {}),
+    ...(options.customTools ? { customTools: options.customTools } : {}),
   }
 
   if (options.agentId) {
@@ -92,7 +122,7 @@ export async function createOrResumeAgent(options: CreateArisAgentOptions) {
 
   return Agent.create({
     apiKey: options.apiKey,
-    name: "Aris",
+    name: options.name ?? "Aris",
     model: { id: modelId },
     local,
   })
@@ -294,6 +324,176 @@ export async function streamArisResponse(options: {
 
     emit({ type: "done", ok: true, proofLabel })
     return { agentId: resolvedId, proofLabel }
+  } catch (error) {
+    activeRuns.delete(runKey)
+    const message = error instanceof Error ? error.message : String(error)
+    emit({ type: "error", message })
+    emit({ type: "done", ok: false })
+    return {}
+  } finally {
+    await agent?.[Symbol.asyncDispose]?.()
+  }
+}
+
+/**
+ * Master control-plane stream (ADR 008). Cursor + customTools only.
+ * OpenRouter is rejected — tools require the local Cursor harness.
+ */
+export async function streamMasterResponse(options: {
+  apiKey?: string
+  provider?: ArisProvider
+  userMessage: string
+  model?: string
+  agentId?: string
+  runKey?: string
+  force?: boolean
+  toolsContext?: MasterToolsContext
+  emit: StreamEmitter
+  onAgentId?: (agentId: string) => void | Promise<void>
+}): Promise<{ agentId?: string }> {
+  const {
+    userMessage,
+    model,
+    agentId,
+    runKey = "master:chat",
+    force,
+    toolsContext,
+    emit,
+    onAgentId,
+  } = options
+
+  const provider: ArisProvider = options.provider ?? "cursor"
+  if (provider !== "cursor") {
+    emit({
+      type: "error",
+      message:
+        "Master requires a Cursor account for control-plane tools. Switch the active account in Studio → Accounts.",
+    })
+    emit({ type: "done", ok: false })
+    return {}
+  }
+
+  const apiKey =
+    options.apiKey?.trim() || resolveProviderEnvFallback("cursor")
+  if (!apiKey) {
+    emit({
+      type: "error",
+      message:
+        "CURSOR_API_KEY is required for Master. Add a Cursor account in Studio → Accounts.",
+    })
+    emit({ type: "done", ok: false })
+    return {}
+  }
+
+  await ensureMasterDir()
+  const customTools = createMasterCustomTools(toolsContext)
+  const prompt = buildMasterPrompt(userMessage, {
+    activeRunLabel: toolsContext?.activeRunLabel,
+  })
+
+  let agent: Awaited<ReturnType<typeof createOrResumeAgent>> | undefined
+
+  try {
+    await validateApiKey(apiKey, "cursor")
+    agent = await createOrResumeAgent({
+      apiKey,
+      workspacePath: ARIS_MASTER_DIR,
+      model,
+      agentId,
+      loadProjectConfig: false,
+      customTools,
+      name: "Aris Master",
+    })
+
+    const resolvedId = (agent as { agentId?: string }).agentId ?? agentId
+    if (resolvedId) {
+      emit({ type: "agent_id", agentId: resolvedId })
+      await onAgentId?.(resolvedId)
+    }
+
+    const run = await agent.send(prompt, {
+      ...(force ? { local: { force: true, customTools } } : { local: { customTools } }),
+      onDelta: ({ update }) => {
+        if (update.type === "text-delta" && "text" in update && update.text) {
+          emit({ type: "assistant_delta", text: String(update.text) })
+        } else if (update.type === "thinking-delta" && "text" in update && update.text) {
+          emit({ type: "thinking", text: String(update.text) })
+        } else if (update.type === "tool-call-started") {
+          emit({
+            type: "tool_call",
+            callId: "callId" in update ? String(update.callId ?? "") : undefined,
+            name: "name" in update ? String(update.name ?? "tool") : "tool",
+            status: "started",
+            args: "args" in update ? update.args : undefined,
+          })
+        } else if (update.type === "tool-call-completed") {
+          const name =
+            "name" in update ? String(update.name ?? "tool") : "tool"
+          emit({
+            type: "tool_call",
+            callId: "callId" in update ? String(update.callId ?? "") : undefined,
+            name,
+            status: "completed",
+          })
+          // Surface navigation hints from tool results when present
+          const resultText =
+            "result" in update && update.result != null
+              ? String(update.result)
+              : ""
+          const nav = resultText.match(/NAVIGATE_PROJECT:([a-f0-9-]+)/i)
+          if (nav) {
+            emit({
+              type: "status",
+              status: "navigate_project",
+              message: nav[1],
+            })
+          }
+        }
+      },
+    })
+
+    emit({ type: "run_id", runId: run.id })
+    activeRuns.set(runKey, {
+      cancel: () => run.cancel(),
+    })
+
+    for await (const event of run.stream()) {
+      if (event.type === "assistant") {
+        for (const block of event.message.content) {
+          if (block.type === "tool_use") {
+            emit({
+              type: "tool_call",
+              callId: block.id,
+              name: block.name,
+              status: "requested",
+              args: block.input,
+            })
+          }
+        }
+      } else if (event.type === "thinking") {
+        const thinking = event as { text?: string; message?: { text?: string } }
+        const text = thinking.text ?? thinking.message?.text ?? ""
+        if (text) emit({ type: "thinking", text })
+      }
+    }
+
+    const result = await run.wait()
+    activeRuns.delete(runKey)
+
+    if (result.status === "error") {
+      emit({ type: "error", message: `Master run failed: ${result.id}` })
+      emit({ type: "done", ok: false })
+      return { agentId: resolvedId }
+    }
+
+    if (result.status === "cancelled") {
+      emit({ type: "status", status: "cancelled", message: "Run cancelled." })
+      emit({ type: "done", ok: false })
+      return { agentId: resolvedId }
+    }
+
+    emit({ type: "done", ok: true })
+    return { agentId: resolvedId }
   } catch (error) {
     activeRuns.delete(runKey)
     const message = error instanceof Error ? error.message : String(error)
