@@ -26,6 +26,7 @@ Living milestone tracker. Update at the end of every milestone with honest proof
 | Planned — Cloudflare remote / phone | pending | 2026-07-10 | [ADR 012](./decisions/012-cloudflare-zero-trust-remote.md): Zero Trust + Tunnel → `agent.madebyaris.com` |
 | Planned — Node-local data | pending | 2026-07-10 | [ADR 013](./decisions/013-node-local-data.md): decentralized SoT; secrets never sync; optional non-secret sync |
 | M8 — Studio UX polish | verified | 2026-07-10 | Split Board/Chat (`?view=`), markdown chat, Idle/Working status, Master sheet shell, create/open Sheets, phase empty copy, Cmd+K project actions. Evidence: `pnpm --filter web typecheck` OK; vitest 7/7; build OK; screenshots `/opt/cursor/artifacts/assets/m8-*.png` |
+| M9 — Master agent loop | implemented but unverified | 2026-07-10 | `POST /api/master` SSE, `~/.aris/master` chat, Cursor customTools (status/projects/notes/servers/create/open), MasterChat UI. Evidence: typecheck OK; vitest 10/10 (incl. privacy); build OK. Live Cursor Master smoke needs user key |
 
 ## Blockers
 

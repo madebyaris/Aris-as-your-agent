@@ -28,6 +28,7 @@ import {
   phasePrompt,
   preferredModelsForProvider,
   readChatHistory,
+  readMasterChatHistory,
   readNotesRegistry,
   readProjectsRegistry,
   readServersRegistry,
@@ -274,6 +275,10 @@ export const getChatHistoryFn = createServerFn({ method: 'POST' })
     if (!project) return { messages: [] }
     return { messages: await readChatHistory(project.workspacePath) }
   })
+
+export const getMasterHistoryFn = createServerFn({ method: 'GET' }).handler(async () => {
+  return { messages: await readMasterChatHistory() }
+})
 
 export const appendChatFn = createServerFn({ method: 'POST' })
   .validator(

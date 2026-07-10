@@ -169,7 +169,6 @@ export async function masterOpenProjectPayload(projectId: string) {
     return { error: `Project not found: ${projectId}` }
   }
   const settings = await readSettings()
-  const { writeSettings } = await import('@aris/workspace')
   await writeSettings({ ...settings, lastProjectId: project.id })
   await touchProject(project.id, {})
   return {

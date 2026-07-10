@@ -13,6 +13,7 @@ import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as StudioRouteImport } from './routes/_studio'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiMasterRouteImport } from './routes/api/master'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as ApiAgentRouteImport } from './routes/api/agent'
 import { Route as StudioServersRouteImport } from './routes/_studio/servers'
@@ -38,6 +39,11 @@ const StudioRoute = StudioRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMasterRoute = ApiMasterRouteImport.update({
+  id: '/api/master',
+  path: '/api/master',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiChatRoute = ApiChatRouteImport.update({
@@ -85,6 +91,7 @@ export interface FileRoutesByFullPath {
   '/servers': typeof StudioServersRoute
   '/api/agent': typeof ApiAgentRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/master': typeof ApiMasterRoute
   '/studio/$projectId': typeof StudioStudioProjectIdRoute
   '/studio/': typeof StudioStudioIndexRoute
 }
@@ -97,6 +104,7 @@ export interface FileRoutesByTo {
   '/servers': typeof StudioServersRoute
   '/api/agent': typeof ApiAgentRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/master': typeof ApiMasterRoute
   '/studio/$projectId': typeof StudioStudioProjectIdRoute
   '/studio': typeof StudioStudioIndexRoute
 }
@@ -111,6 +119,7 @@ export interface FileRoutesById {
   '/_studio/servers': typeof StudioServersRoute
   '/api/agent': typeof ApiAgentRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/master': typeof ApiMasterRoute
   '/_studio/studio/$projectId': typeof StudioStudioProjectIdRoute
   '/_studio/studio/': typeof StudioStudioIndexRoute
 }
@@ -125,6 +134,7 @@ export interface FileRouteTypes {
     | '/servers'
     | '/api/agent'
     | '/api/chat'
+    | '/api/master'
     | '/studio/$projectId'
     | '/studio/'
   fileRoutesByTo: FileRoutesByTo
@@ -137,6 +147,7 @@ export interface FileRouteTypes {
     | '/servers'
     | '/api/agent'
     | '/api/chat'
+    | '/api/master'
     | '/studio/$projectId'
     | '/studio'
   id:
@@ -150,6 +161,7 @@ export interface FileRouteTypes {
     | '/_studio/servers'
     | '/api/agent'
     | '/api/chat'
+    | '/api/master'
     | '/_studio/studio/$projectId'
     | '/_studio/studio/'
   fileRoutesById: FileRoutesById
@@ -161,6 +173,7 @@ export interface RootRouteChildren {
   ProjectsRoute: typeof ProjectsRoute
   ApiAgentRoute: typeof ApiAgentRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiMasterRoute: typeof ApiMasterRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -191,6 +204,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/master': {
+      id: '/api/master'
+      path: '/api/master'
+      fullPath: '/api/master'
+      preLoaderRoute: typeof ApiMasterRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/chat': {
@@ -271,6 +291,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProjectsRoute: ProjectsRoute,
   ApiAgentRoute: ApiAgentRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiMasterRoute: ApiMasterRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
