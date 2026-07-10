@@ -36,6 +36,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from '@/components/ui/resizable'
+import { useDefaultLayout } from 'react-resizable-panels'
 import { StudioChat } from '@/components/studio/StudioChat'
 import { useStudioRun } from '@/components/studio/studio-run-context'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -109,6 +110,11 @@ function ProjectWorkspacePage() {
   const resolvedView: ProjectView = requestedView ?? 'board'
   const view: ProjectView =
     isMobile && resolvedView === 'split' ? 'board' : resolvedView
+
+  const { defaultLayout, onLayoutChanged } = useDefaultLayout({
+    id: `aris-project-split-${projectId}`,
+    panelIds: ['board', 'chat'],
+  })
 
   const projectQuery = useQuery({
     queryKey: ['project', projectId],
@@ -221,12 +227,21 @@ function ProjectWorkspacePage() {
             id={`project-split-${projectId}`}
             orientation="horizontal"
             className="min-h-0 flex-1"
+            defaultLayout={defaultLayout}
+            onLayoutChanged={onLayoutChanged}
           >
             <ResizablePanel id="board" defaultSize="58%" minSize="36%" className="min-h-0 min-w-0">
               <BoardPanel projectId={projectId} workspacePath={project.workspacePath} />
             </ResizablePanel>
             <ResizableHandle withHandle />
-            <ResizablePanel id="chat" defaultSize="42%" minSize="28%" className="min-h-0 min-w-0">
+            <ResizablePanel
+              id="chat"
+              defaultSize="42%"
+              minSize="28%"
+              collapsible
+              collapsedSize="0%"
+              className="min-h-0 min-w-0"
+            >
               <StudioChat projectId={projectId} compactHeader showSideBorder />
             </ResizablePanel>
           </ResizablePanelGroup>
