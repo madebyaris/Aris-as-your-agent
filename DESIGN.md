@@ -13,7 +13,7 @@ The memorable element is the **workflow rail**: project context and agent state 
 - Primary scene: a developer or founder working on a 27-inch monitor for an extended session in normal office or home lighting.
 - Light mode is the default for clarity and broad use; dark mode is a first-class equivalent for dim environments.
 - Color strategy: restrained, warm-neutral black and white with semantic colors reserved for connection, warning, destructive actions, and verified status.
-- No gradients, glass effects, decorative shadows, or tinted brand washes.
+- **Floating chrome may use macOS-style vibrancy** (translucent fill + backdrop blur + hairline rim + soft elevation) on the workflow taskbar and sticky command header only. Content surfaces stay flat — no decorative glass cards, tinted brand washes, or marketing gradients.
 
 ## Color
 
@@ -56,7 +56,7 @@ Use OKLCH tokens only.
 
 - Flat sidebar with logo, primary navigation, project list, and connection state.
 - Top command bar includes current location, global command trigger, and create action.
-- Floating taskbar (workflow rail) at the bottom: project context, quick menu, model/connection or Stop when a run is active, theme.
+- Floating taskbar (workflow rail) at the bottom: **glass / vibrancy** pill — project context, Master chat, quick menu, model/connection or Stop when a run is active, theme.
 - Active navigation uses a quiet neutral fill plus weight, never a bright accent.
 
 ### Project overview

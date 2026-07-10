@@ -56,6 +56,7 @@ export function ThemeToggle() {
       type="button"
       variant="ghost"
       size="icon-sm"
+      className="rounded-full text-muted-foreground hover:bg-foreground/6 hover:text-foreground"
       onClick={toggleMode}
       aria-label={`Theme: ${mode}`}
       title={`Theme: ${mode}`}

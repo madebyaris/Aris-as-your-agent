@@ -192,31 +192,35 @@ export function StudioShell({ children }: { children: ReactNode }) {
           </SidebarGroup>
         </SidebarContent>
 
-        <SidebarFooter className="p-2">
+        <SidebarFooter className="border-t border-sidebar-border bg-sidebar p-2">
           <SidebarMenu>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Account and model" className="h-10 rounded-md">
+              <SidebarMenuButton
+                asChild
+                tooltip="Account and model"
+                className="h-11 rounded-lg border border-sidebar-border bg-sidebar-accent/40 text-sidebar-foreground hover:bg-sidebar-accent"
+              >
                 <Link to="/accounts">
-                  <div className="flex size-7 shrink-0 items-center justify-center rounded-md border border-sidebar-border bg-background">
+                  <div className="flex size-7 shrink-0 items-center justify-center rounded-md border border-sidebar-border bg-background text-sidebar-foreground shadow-xs">
                     <Bot className="size-3.5" />
                   </div>
                   <div className="min-w-0 flex-1 leading-tight">
-                    <p className="truncate text-xs font-medium">
+                    <p className="truncate text-xs font-semibold text-sidebar-foreground">
                       {settingsQuery.data?.defaultModel ?? 'No model selected'}
                     </p>
-                    <p className="flex items-center gap-1.5 truncate text-[10px] text-sidebar-foreground/50">
+                    <p className="flex items-center gap-1.5 truncate text-[11px] text-sidebar-foreground/70">
                       <span
                         className={cn(
-                          'size-1.5 rounded-full',
+                          'size-1.5 shrink-0 rounded-full',
                           settingsQuery.data?.hasApiKey
                             ? 'bg-emerald-500'
-                            : 'bg-sidebar-foreground/25',
+                            : 'bg-sidebar-foreground/40',
                         )}
                       />
                       {settingsQuery.data?.hasApiKey ? 'Provider connected' : 'Connect provider'}
                     </p>
                   </div>
-                  <ChevronRight className="size-3.5 opacity-35" />
+                  <ChevronRight className="size-3.5 text-sidebar-foreground/55" />
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -226,21 +230,21 @@ export function StudioShell({ children }: { children: ReactNode }) {
       </Sidebar>
 
       <SidebarInset className="bg-background">
-        <header className="sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b bg-background/94 px-3 backdrop-blur-sm sm:px-4">
+        <header className="aris-glass sticky top-0 z-20 flex h-14 shrink-0 items-center gap-3 border-b-0 px-3 ring-1 ring-inset ring-[color:var(--glass-border)] sm:px-4">
           <div className="flex min-w-0 items-center gap-2">
             <SidebarTrigger className="size-8 text-muted-foreground hover:text-foreground" />
-            <Separator orientation="vertical" className="mx-1 h-4" />
+            <Separator orientation="vertical" className="mx-1 h-4 opacity-50" />
             <section.icon className="hidden size-4 text-muted-foreground sm:block" />
             <div className="flex min-w-0 items-center gap-1.5 text-sm">
               <span className="hidden text-muted-foreground sm:inline">Workspace</span>
               <ChevronRight className="hidden size-3 text-muted-foreground/60 sm:block" />
-              <span className="truncate font-medium">{section.label}</span>
+              <span className="truncate font-medium tracking-tight">{section.label}</span>
             </div>
           </div>
           <button
             type="button"
             onClick={() => setCommandOpen(true)}
-            className="mx-auto hidden h-8 w-full max-w-sm items-center gap-2 rounded-md border bg-muted/35 px-2.5 text-left text-xs text-muted-foreground shadow-xs transition-colors hover:bg-muted md:flex"
+            className="mx-auto hidden h-8 w-full max-w-sm items-center gap-2 rounded-full border border-foreground/8 bg-foreground/4 px-3 text-left text-xs text-muted-foreground shadow-none transition-colors hover:bg-foreground/7 md:flex"
           >
             <Search className="size-3.5" />
             <span className="flex-1">Search projects and actions</span>

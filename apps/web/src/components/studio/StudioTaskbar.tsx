@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { cn } from '@/lib/utils'
+import { useSidebar } from '@/components/ui/sidebar'
 import { useStudioRun } from './studio-run-context'
 
 type StudioTaskbarProps = {
@@ -36,6 +37,7 @@ type StudioTaskbarProps = {
 export function StudioTaskbar({ onOpenCommand }: StudioTaskbarProps) {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const navigate = useNavigate()
+  const { state: sidebarState, isMobile } = useSidebar()
   const { activeRun, clearRun } = useStudioRun()
   const projectsQuery = useQuery({ queryKey: ['projects'], queryFn: listProjects })
   const settingsQuery = useQuery({ queryKey: ['settings'], queryFn: getSettings })
@@ -60,36 +62,60 @@ export function StudioTaskbar({ onOpenCommand }: StudioTaskbarProps) {
     })
   }
 
+  const insetLeft =
+    isMobile || sidebarState === 'collapsed'
+      ? undefined
+      : 'calc(var(--sidebar-width) + 0.75rem)'
+
   return (
     <div
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-3 pb-[max(0.85rem,env(safe-area-inset-bottom))] pt-6"
       data-slot="studio-taskbar"
+      style={insetLeft ? { paddingLeft: insetLeft } : undefined}
     >
-      <div className="pointer-events-auto grid w-full max-w-3xl grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-xl border bg-background/95 p-1.5 shadow-sm backdrop-blur-sm supports-backdrop-filter:bg-background/90">
+      <div className="pointer-events-none relative w-full max-w-3xl">
+        {/* Soft fade only under the pill — never across the sidebar */}
+        <div
+          aria-hidden
+          className="absolute inset-x-4 -bottom-2 h-20 rounded-[2rem] bg-gradient-to-t from-background/90 via-background/40 to-transparent"
+        />
+        <div
+          className={cn(
+            'aris-glass pointer-events-auto relative grid w-full',
+            'grid-cols-[1fr_auto_1fr] items-center gap-2 rounded-[1.45rem] p-1.5',
+            'ring-1 ring-inset ring-[color:var(--glass-border)]',
+          )}
+        >
+        {/* Soft specular rim — macOS dock feel */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-6 top-0 h-px rounded-full bg-gradient-to-r from-transparent via-white/70 to-transparent dark:via-white/20"
+        />
+
         <div className="flex min-w-0 items-center gap-1.5 pl-1.5">
           {inProject && currentProject ? (
             <>
               <Link
                 to="/studio/$projectId"
                 params={{ projectId: currentProject.id }}
-                className="flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-xs hover:bg-muted/60"
+                className="flex min-w-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs transition-colors hover:bg-foreground/6"
                 title={currentProject.workspacePath}
               >
                 <FolderKanban className="size-3.5 shrink-0 text-muted-foreground" />
-                <span className="truncate font-medium">{currentProject.name}</span>
+                <span className="truncate font-medium tracking-tight">{currentProject.name}</span>
               </Link>
-              <span className="hidden text-muted-foreground/40 sm:inline">·</span>
-              <span className="hidden truncate font-mono text-[10px] text-muted-foreground sm:inline">
+              <span className="hidden text-muted-foreground/35 sm:inline">·</span>
+              <span className="hidden truncate font-mono text-[10px] text-muted-foreground/80 sm:inline">
                 {currentProject.workspacePath.split('/').slice(-2).join('/')}
               </span>
             </>
           ) : (
             <Link
               to="/studio"
-              className="flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+              className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-foreground/6 hover:text-foreground"
             >
               <LayoutGrid className="size-3.5" />
-              <span className="font-medium">Workspace</span>
+              <span className="font-medium tracking-tight">Workspace</span>
             </Link>
           )}
         </div>
@@ -100,31 +126,39 @@ export function StudioTaskbar({ onOpenCommand }: StudioTaskbarProps) {
           aria-label="Open Master chat"
           title="Master chat"
           className={cn(
-            'flex size-11 shrink-0 items-center justify-center rounded-full border border-foreground/10',
-            'bg-foreground text-background shadow-md',
-            'transition-[transform,box-shadow] duration-150 ease-out',
-            'hover:scale-105 hover:shadow-lg active:scale-95',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+            'relative z-10 -my-1 flex size-12 shrink-0 items-center justify-center rounded-full',
+            'bg-foreground text-background',
+            'shadow-[0_1px_2px_oklch(0_0_0/0.12),0_8px_20px_oklch(0.2_0.02_70/0.28),inset_0_1px_0_oklch(1_0_0/0.22)]',
+            'ring-2 ring-[color:var(--glass-border)]',
+            'transition-[transform,box-shadow] duration-200 ease-out',
+            'hover:scale-[1.06] hover:shadow-[0_2px_4px_oklch(0_0_0/0.14),0_12px_28px_oklch(0.2_0.02_70/0.34),inset_0_1px_0_oklch(1_0_0/0.28)]',
+            'active:scale-[0.96]',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
           )}
         >
           <Bot className="size-5" />
         </button>
 
-        <div className="flex shrink-0 items-center justify-end gap-1 pr-0.5">
+        <div className="flex shrink-0 items-center justify-end gap-0.5 pr-0.5">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-8 gap-1.5 px-2.5 text-muted-foreground"
+                className="h-8 gap-1.5 rounded-full px-2.5 text-muted-foreground hover:bg-foreground/6 hover:text-foreground"
                 aria-label="Quick menu"
               >
                 <MoreHorizontal className="size-3.5" />
                 <span className="hidden sm:inline">Menu</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56" side="top" sideOffset={8}>
+            <DropdownMenuContent
+              align="end"
+              className="aris-glass aris-glass-strong w-56 rounded-xl border-[color:var(--glass-border-outer)]"
+              side="top"
+              sideOffset={10}
+            >
               <DropdownMenuLabel className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
                 Quick
               </DropdownMenuLabel>
@@ -175,7 +209,7 @@ export function StudioTaskbar({ onOpenCommand }: StudioTaskbarProps) {
               type="button"
               variant="outline"
               size="sm"
-              className="h-8 gap-1.5 border-amber-500/40 bg-amber-500/8 px-2.5 text-amber-950 dark:text-amber-100"
+              className="h-8 gap-1.5 rounded-full border-amber-500/35 bg-amber-500/12 px-2.5 text-amber-950 backdrop-blur-sm dark:text-amber-100"
               onClick={() => void stopActiveRun()}
             >
               <Square className="size-3 fill-current" />
@@ -186,28 +220,30 @@ export function StudioTaskbar({ onOpenCommand }: StudioTaskbarProps) {
             <Link
               to="/accounts"
               className={cn(
-                'hidden h-8 items-center gap-1.5 rounded-md px-2 text-[11px] text-muted-foreground hover:bg-muted/60 hover:text-foreground md:flex',
+                'hidden h-8 items-center gap-1.5 rounded-full px-2.5 text-[11px] text-muted-foreground',
+                'transition-colors hover:bg-foreground/6 hover:text-foreground md:flex',
               )}
               title="Model and connection"
             >
               <span
                 className={cn(
-                  'size-1.5 rounded-full',
+                  'size-1.5 rounded-full shadow-[0_0_0_2px_oklch(1_0_0/0.35)]',
                   settingsQuery.data?.hasApiKey ? 'bg-emerald-500' : 'bg-muted-foreground/30',
                 )}
               />
-              <span className="max-w-28 truncate font-medium">
+              <span className="max-w-28 truncate font-medium tracking-tight">
                 {settingsQuery.data?.defaultModel ?? 'No model'}
               </span>
             </Link>
           )}
           {!activeRun && inProject ? (
-            <span className="hidden items-center gap-1 px-1 text-[10px] text-muted-foreground lg:flex">
+            <span className="hidden items-center gap-1 px-1 text-[10px] text-muted-foreground/70 lg:flex">
               <Circle className="size-1.5 fill-current opacity-40" />
               Idle
             </span>
           ) : null}
           <ThemeToggle />
+        </div>
         </div>
       </div>
     </div>

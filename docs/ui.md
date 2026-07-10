@@ -28,7 +28,7 @@ Accounts
 - **Browse first:** projects, notes, servers, and accounts render as dense rows rather than form-heavy card grids.
 - **Progressive disclosure:** create and configuration forms open in right sheets.
 - **Persistent context:** project path, model, connection state, phase, and proof remain visible near the action they affect.
-- **Floating taskbar:** shell-level workflow rail with project context, quick menu (Master chat placeholder, Notes/Servers/Accounts, ⌘K), and active-run Stop.
+- **Floating taskbar:** macOS-style glass workflow rail (vibrancy + soft elevation) with project context, Master chat, quick menu, model/connection, and active-run Stop.
 - **Keyboard access:** the global command palette opens with `Cmd/Ctrl + K`.
 - **Designed empty states:** every empty surface explains the decision and offers one primary action.
 
