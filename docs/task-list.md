@@ -109,7 +109,12 @@
 - [ ] Phase progress bar (Research → Brief → Tasks → Build)
 - [ ] TanStack Virtual for message list
 - [ ] TanStack Form for settings
-- [ ] Mobile-responsive layout
+- [x] Mobile-responsive layout (sidebar sheet + single-pane project views)
+- [x] Split Board/Chat view + `?view=` URL state (M8)
+- [x] Markdown assistant messages + structured tool activity (M8)
+- [x] Honest chat/run status wired to StudioRun (M8)
+- [x] Master control-plane sheet shell (status only; full agent later) (M8)
+- [x] Project create/open as Sheets (M8)
 
 ---
 
@@ -230,6 +235,8 @@
 |------|---------|-------|
 | 2026-07-06 | Cloud agent | Phase 0 scaffold. Added projects, notes, server packages + PRD philosophy. |
 | 2026-07-10 | Cursor | Aris Studio v1 implemented (M0–M7). Live agent smoke still needs API key. |
+| 2026-07-10 | Cloud agent | M8 UX polish: Split view, markdown chat, Master sheet shell, Sheets for create/open. |
+| 2026-07-10 | Cloud agent | M9 Master agent loop: `/api/master`, customTools, MasterChat UI. Live smoke needs Cursor key. |
 
 ### Quick resume commands
 
@@ -287,11 +294,20 @@ See [ADR 007](./decisions/007-mcp-registry.md).
 
 See [ADR 008](./decisions/008-master-child-hermes-workstation.md).
 
-- [ ] Ship Master vs Child as separate agents (local single node first)
+- [x] Ship Master vs Child as separate agents (local single node first) — Master chat + tools (M9); Child = existing project Board/Chat
 - [ ] Stable Command API (Master + project/Child) suitable for second clients
 - [ ] Hermes / WhatsApp adapter (external) → Master and project work
 - [ ] Active execution node + open/move project onto Win11 workstation
 - [ ] Mac Tauri + mobile web as clients against workstation when ready
+
+### Master agent (M9)
+
+- [x] `~/.aris/master/` cwd + `chat.jsonl` + `settings.masterAgentId`
+- [x] `POST /api/master` SSE + `streamMasterResponse` (Cursor + customTools)
+- [x] Tools: status, list/create/open projects, project summary, agent notes, servers (no secrets)
+- [x] Master sheet chat UI (markdown, activity, Cursor gate)
+- [ ] Live Cursor smoke with real key
+- [ ] Master spawn Child runs (deferred)
 
 ## Planned — Studio unlock + Command API security
 

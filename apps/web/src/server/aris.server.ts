@@ -1,11 +1,14 @@
 export {
   ARIS_WORKSPACE_ROOT,
+  appendMasterChatLine,
   createSessionWorkspace,
   getActiveAccount,
   getActiveApiKey,
+  readMasterChatHistory,
   readSettings,
   removeAccount,
   setActiveAccount,
+  setMasterAgentId,
   upsertAccount,
   writeSettings,
 } from '@aris/workspace'

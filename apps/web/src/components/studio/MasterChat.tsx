@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import {
   cancelAgentRunFn,
-  getChatHistoryFn,
+  getMasterHistoryFn,
   getSettings,
-  promotePlanFn,
 } from '#/server/aris'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -16,12 +16,9 @@ import type { ArisStreamEvent } from '@aris/stream'
 import {
   ArrowUp,
   Bot,
-  CheckCircle2,
-  Code2,
-  ListPlus,
+  FolderKanban,
+  LayoutList,
   Loader2,
-  MessageSquare,
-  Search,
   Square,
   UserRound,
   Wrench,
@@ -42,23 +39,25 @@ type ToolActivity = {
   status: string
 }
 
-const STARTER_PROMPTS = [
+const STARTERS = [
   {
-    icon: Search,
-    label: 'Audit this project',
-    prompt: 'Audit this project and identify the highest-impact next improvement.',
+    icon: LayoutList,
+    label: 'Studio status',
+    prompt: 'What is the current Studio status? List my projects briefly.',
   },
   {
-    icon: Code2,
-    label: 'Build a feature',
-    prompt: 'Help me shape and build a new feature for this project.',
+    icon: FolderKanban,
+    label: 'List projects',
+    prompt: 'List all registered projects with paths and modes.',
   },
   {
-    icon: CheckCircle2,
-    label: 'Review current work',
-    prompt: 'Review the current work and verify what is actually complete.',
+    icon: Wrench,
+    label: 'What can you do?',
+    prompt: 'What Master tools can you use, and when should I use project Chat instead?',
   },
 ] as const
+
+const RUN_KEY = 'master:chat'
 
 function MarkdownBody({ content }: { content: string }) {
   return (
@@ -68,15 +67,8 @@ function MarkdownBody({ content }: { content: string }) {
   )
 }
 
-export function StudioChat({
-  projectId,
-  compactHeader = false,
-  showSideBorder = false,
-}: {
-  projectId: string
-  compactHeader?: boolean
-  showSideBorder?: boolean
-}) {
+export function MasterChat() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { activeRun, setActiveRun, clearRun } = useStudioRun()
   const [input, setInput] = useState('')
@@ -86,13 +78,16 @@ export function StudioChat({
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamError, setStreamError] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
-  const runKey = `${projectId}:chat`
 
   const settingsQuery = useQuery({ queryKey: ['settings'], queryFn: getSettings })
   const historyQuery = useQuery({
-    queryKey: ['chat', projectId],
-    queryFn: () => getChatHistoryFn({ data: { projectId } }),
+    queryKey: ['master-chat'],
+    queryFn: getMasterHistoryFn,
   })
+
+  const provider = settingsQuery.data?.activeProvider ?? settingsQuery.data?.defaultProvider
+  const cursorReady =
+    settingsQuery.data?.hasApiKey === true && (provider === 'cursor' || !provider)
 
   useEffect(() => {
     const entries = historyQuery.data?.messages
@@ -110,30 +105,31 @@ export function StudioChat({
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, streaming, activity])
 
-  const promoteMutation = useMutation({
-    mutationFn: (text: string) => {
-      const lines = text
-        .split('\n')
-        .map((l) => l.replace(/^[-*\d.)\s]+/, '').trim())
-        .filter((l) => l.length > 8)
-        .slice(0, 12)
-        .map((title) => ({ title }))
-      return promotePlanFn({ data: { projectId, items: lines } })
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['board', projectId] })
-      toast.success('Promoted lines to backlog')
-    },
-  })
-
   const status: 'idle' | 'working' | 'error' = streamError
     ? 'error'
-    : isStreaming || activeRun?.runKey === runKey
+    : isStreaming || activeRun?.runKey === RUN_KEY
       ? 'working'
       : 'idle'
 
+  function maybeNavigateFromText(text: string) {
+    const match = text.match(/NAVIGATE_PROJECT:([a-f0-9-]+)/i)
+    if (!match) return
+    const projectId = match[1]
+    void navigate({
+      to: '/studio/$projectId',
+      params: { projectId },
+      search: { view: 'board' },
+    })
+    toast.success('Opening project')
+  }
+
   async function sendMessage(message: string) {
     if (!message.trim() || isStreaming) return
+    if (!cursorReady) {
+      toast.error('Master needs an active Cursor account')
+      return
+    }
+
     setIsStreaming(true)
     setStreamError(false)
     setStreaming('')
@@ -143,15 +139,19 @@ export function StudioChat({
       { id: crypto.randomUUID(), role: 'user', content: message.trim() },
     ])
     setInput('')
+    setActiveRun({ runKey: RUN_KEY, label: 'Master' })
 
-    setActiveRun({ runKey, label: 'Chat', projectId })
     try {
-      const response = await fetch('/api/agent', {
+      const response = await fetch('/api/master', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, message: message.trim() }),
+        body: JSON.stringify({
+          message: message.trim(),
+          activeRunLabel:
+            activeRun && activeRun.runKey !== RUN_KEY ? activeRun.label : null,
+        }),
       })
-      if (!response.ok || !response.body) throw new Error('Failed to connect')
+      if (!response.ok || !response.body) throw new Error('Failed to connect to Master')
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
@@ -196,6 +196,16 @@ export function StudioChat({
               return [...a, next]
             })
           }
+          if (eventName === 'status' && payload.type === 'status') {
+            if (payload.status === 'navigate_project' && payload.message) {
+              void navigate({
+                to: '/studio/$projectId',
+                params: { projectId: payload.message },
+                search: { view: 'board' },
+              })
+              toast.success('Opening project')
+            }
+          }
           if (eventName === 'error' && payload.type === 'error') {
             setStreamError(true)
             toast.error(payload.message)
@@ -210,35 +220,28 @@ export function StudioChat({
                   content: assistantText,
                 },
               ])
+              maybeNavigateFromText(assistantText)
             }
             setStreaming('')
           }
         }
       }
-      await queryClient.invalidateQueries({ queryKey: ['chat', projectId] })
+      await queryClient.invalidateQueries({ queryKey: ['master-chat'] })
+      await queryClient.invalidateQueries({ queryKey: ['projects'] })
+      await queryClient.invalidateQueries({ queryKey: ['settings'] })
     } catch (e) {
       setStreamError(true)
-      toast.error(e instanceof Error ? e.message : 'Chat failed')
+      toast.error(e instanceof Error ? e.message : 'Master chat failed')
     } finally {
       setIsStreaming(false)
-      clearRun(runKey)
-      void cancelAgentRunFn({ data: { runKey } })
+      clearRun(RUN_KEY)
+      void cancelAgentRunFn({ data: { runKey: RUN_KEY } })
     }
   }
 
   return (
-    <div
-      className={cn(
-        'flex min-h-0 flex-1 flex-col bg-muted/15',
-        showSideBorder && 'border-l border-border/60',
-      )}
-    >
-      <div
-        className={cn(
-          'flex shrink-0 items-center justify-between gap-2 border-b bg-background px-4',
-          compactHeader ? 'h-10' : 'h-11',
-        )}
-      >
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b px-4">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span
             className={cn(
@@ -255,9 +258,9 @@ export function StudioChat({
           <Badge variant="outline" className="h-5 font-mono text-[10px] font-normal">
             {settingsQuery.data?.defaultModel ?? 'composer-2.5'}
           </Badge>
-          {!settingsQuery.data?.hasApiKey ? (
+          {!cursorReady ? (
             <Badge variant="secondary" className="h-5 font-normal text-[10px]">
-              No provider
+              Cursor required
             </Badge>
           ) : null}
         </div>
@@ -267,8 +270,8 @@ export function StudioChat({
             variant="outline"
             className="h-7 text-xs text-destructive hover:text-destructive"
             onClick={() => {
-              clearRun(runKey)
-              void cancelAgentRunFn({ data: { runKey } })
+              clearRun(RUN_KEY)
+              void cancelAgentRunFn({ data: { runKey: RUN_KEY } })
               setIsStreaming(false)
             }}
           >
@@ -278,27 +281,35 @@ export function StudioChat({
         ) : null}
       </div>
 
+      {!cursorReady ? (
+        <div className="border-b bg-amber-500/10 px-4 py-2.5 text-xs leading-5 text-amber-950 dark:text-amber-100">
+          Master needs an active <strong>Cursor</strong> account for control-plane tools. OpenRouter
+          is lite/chat-only and cannot run Master tools.
+        </div>
+      ) : null}
+
       <ScrollArea className="flex-1">
-        <div className="mx-auto flex min-h-full max-w-3xl flex-col px-4 py-6 sm:px-6">
+        <div className="flex min-h-full flex-col px-4 py-4">
           {messages.length === 0 && !streaming ? (
-            <div className="my-auto py-10">
-              <div className="mx-auto max-w-xl text-center">
-                <div className="mx-auto mb-5 flex size-11 items-center justify-center rounded-xl border bg-background shadow-xs">
-                  <MessageSquare className="size-5" />
+            <div className="my-auto py-6">
+              <div className="mx-auto max-w-md text-center">
+                <div className="mx-auto mb-4 flex size-10 items-center justify-center rounded-xl border bg-background shadow-xs">
+                  <Bot className="size-4.5" />
                 </div>
-                <h2 className="text-lg font-semibold tracking-tight">What should we work on?</h2>
-                <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-                  Give Aris a direct instruction, ask for an audit, or shape a plan before adding
-                  it to the board.
+                <h3 className="text-sm font-semibold tracking-tight">Master control plane</h3>
+                <p className="mx-auto mt-1.5 max-w-sm text-xs leading-5 text-muted-foreground">
+                  Ask about projects, status, notes, and servers. Project code work stays in Board
+                  and Chat.
                 </p>
               </div>
-              <div className="mx-auto mt-6 grid max-w-xl gap-2 sm:grid-cols-3">
-                {STARTER_PROMPTS.map((starter) => (
+              <div className="mx-auto mt-5 grid max-w-md gap-2">
+                {STARTERS.map((starter) => (
                   <button
                     key={starter.label}
                     type="button"
+                    disabled={!cursorReady}
                     onClick={() => void sendMessage(starter.prompt)}
-                    className="flex items-center gap-2.5 rounded-lg border bg-background px-3 py-3 text-left text-xs font-medium shadow-xs hover:bg-muted/45"
+                    className="flex items-center gap-2.5 rounded-lg border bg-background px-3 py-2.5 text-left text-xs font-medium shadow-xs hover:bg-muted/45 disabled:opacity-50"
                   >
                     <starter.icon className="size-3.5 text-muted-foreground" />
                     {starter.label}
@@ -307,16 +318,17 @@ export function StudioChat({
               </div>
             </div>
           ) : null}
+
           {messages.map((msg) => (
             <article
               key={msg.id}
-              className="grid grid-cols-[28px_minmax(0,1fr)] gap-3 border-b border-border/70 py-5 last:border-0"
+              className="grid grid-cols-[28px_minmax(0,1fr)] gap-3 border-b border-border/70 py-4 last:border-0"
             >
               <div
                 className={
                   msg.role === 'user'
                     ? 'flex size-7 items-center justify-center rounded-lg border bg-muted'
-                    : 'flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground'
+                    : 'flex size-7 items-center justify-center rounded-lg bg-foreground text-background'
                 }
               >
                 {msg.role === 'user' ? (
@@ -326,25 +338,11 @@ export function StudioChat({
                 )}
               </div>
               <div className="min-w-0">
-                <div className="mb-2 flex h-5 items-center justify-between gap-2">
-                  <span className="text-xs font-medium">
-                    {msg.role === 'user' ? 'You' : 'Aris'}
-                  </span>
-                  {msg.role === 'assistant' ? (
-                    <Button
-                      type="button"
-                      size="xs"
-                      variant="ghost"
-                      className="h-6 px-1.5 text-[10px] text-muted-foreground"
-                      onClick={() => promoteMutation.mutate(msg.content)}
-                    >
-                      <ListPlus className="size-3" />
-                      Add to board
-                    </Button>
-                  ) : null}
+                <div className="mb-1.5 text-xs font-medium">
+                  {msg.role === 'user' ? 'You' : 'Master'}
                 </div>
                 {msg.role === 'user' ? (
-                  <div className="rounded-lg bg-muted/65 px-3.5 py-3 text-sm leading-6">
+                  <div className="rounded-lg bg-muted/65 px-3 py-2.5 text-sm leading-6">
                     <pre className="m-0 whitespace-pre-wrap font-sans">{msg.content}</pre>
                   </div>
                 ) : (
@@ -353,14 +351,15 @@ export function StudioChat({
               </div>
             </article>
           ))}
+
           {streaming ? (
-            <article className="grid grid-cols-[28px_minmax(0,1fr)] gap-3 py-5">
-              <div className="flex size-7 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <article className="grid grid-cols-[28px_minmax(0,1fr)] gap-3 py-4">
+              <div className="flex size-7 items-center justify-center rounded-lg bg-foreground text-background">
                 <Bot className="size-3.5" />
               </div>
               <div className="min-w-0">
-                <div className="mb-2 flex items-center gap-2">
-                  <span className="text-xs font-medium">Aris</span>
+                <div className="mb-1.5 flex items-center gap-2">
+                  <span className="text-xs font-medium">Master</span>
                   <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
                     <Loader2 className="size-3 animate-spin" />
                     Working
@@ -370,6 +369,7 @@ export function StudioChat({
               </div>
             </article>
           ) : null}
+
           {activity.length > 0 ? (
             <details open={isStreaming} className="mb-3 rounded-lg border bg-background">
               <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 text-xs font-medium text-muted-foreground">
@@ -383,17 +383,7 @@ export function StudioChat({
                     className="flex items-center gap-2 rounded-md bg-muted/40 px-2 py-1.5 font-mono text-[10px]"
                   >
                     <span className="truncate font-medium text-foreground/80">{item.name}</span>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        'ml-auto h-4 shrink-0 px-1.5 font-normal text-[9px]',
-                        item.status === 'completed' || item.status === 'done'
-                          ? 'border-status-success/40 text-status-success'
-                          : item.status === 'error' || item.status === 'failed'
-                            ? 'border-destructive/40 text-destructive'
-                            : 'text-muted-foreground',
-                      )}
-                    >
+                    <Badge variant="outline" className="ml-auto h-4 shrink-0 px-1.5 font-normal text-[9px]">
                       {item.status}
                     </Badge>
                   </li>
@@ -406,20 +396,20 @@ export function StudioChat({
       </ScrollArea>
 
       <form
-        className="shrink-0 border-t bg-background px-3 py-3 sm:px-5"
+        className="shrink-0 border-t px-3 py-3"
         onSubmit={(e) => {
           e.preventDefault()
           void sendMessage(input)
         }}
       >
-        <div className="mx-auto max-w-3xl rounded-xl border bg-card shadow-sm focus-within:ring-2 focus-within:ring-ring/25">
+        <div className="rounded-xl border bg-card shadow-sm focus-within:ring-2 focus-within:ring-ring/25">
           <Textarea
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            placeholder="Ask Aris to research, plan, build, or review…"
+            placeholder="Ask Master about projects, status, notes…"
             rows={2}
-            disabled={isStreaming}
-            className="min-h-20 resize-none border-0 bg-transparent px-3.5 py-3 text-sm shadow-none focus-visible:ring-0"
+            disabled={isStreaming || !cursorReady}
+            className="min-h-16 resize-none border-0 bg-transparent px-3.5 py-3 text-sm shadow-none focus-visible:ring-0"
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault()
@@ -430,14 +420,12 @@ export function StudioChat({
           <div className="flex items-center justify-between border-t px-2.5 py-2">
             <span className="text-[10px] text-muted-foreground">
               <kbd className="font-mono">Enter</kbd> send
-              <span className="mx-1.5">·</span>
-              <kbd className="font-mono">Shift Enter</kbd> new line
             </span>
             <Button
               type="submit"
               size="icon-sm"
-              disabled={isStreaming || !input.trim()}
-              aria-label="Send message"
+              disabled={isStreaming || !cursorReady || !input.trim()}
+              aria-label="Send to Master"
               className="rounded-lg"
             >
               {isStreaming ? (

@@ -6,10 +6,13 @@ import {
   Bot,
   ChevronRight,
   Circle,
+  Columns2,
   FileText,
   FolderKanban,
   KeyRound,
   Laptop,
+  LayoutGrid,
+  MessageSquare,
   Plus,
   Search,
   Server,
@@ -320,6 +323,55 @@ export function StudioShell({ children }: { children: ReactNode }) {
                     <ArrowUpRight className="size-3.5 opacity-40" />
                   </CommandItem>
                 ))}
+              </CommandGroup>
+            </>
+          ) : null}
+          {currentProject ? (
+            <>
+              <CommandSeparator />
+              <CommandGroup heading="This project">
+                <CommandItem
+                  onSelect={() =>
+                    runCommand(() =>
+                      void navigate({
+                        to: '/studio/$projectId',
+                        params: { projectId: currentProject.id },
+                        search: { view: 'board' },
+                      }),
+                    )
+                  }
+                >
+                  <LayoutGrid className="size-4" />
+                  <span>Board view</span>
+                </CommandItem>
+                <CommandItem
+                  onSelect={() =>
+                    runCommand(() =>
+                      void navigate({
+                        to: '/studio/$projectId',
+                        params: { projectId: currentProject.id },
+                        search: { view: 'chat' },
+                      }),
+                    )
+                  }
+                >
+                  <MessageSquare className="size-4" />
+                  <span>Chat view</span>
+                </CommandItem>
+                <CommandItem
+                  onSelect={() =>
+                    runCommand(() =>
+                      void navigate({
+                        to: '/studio/$projectId',
+                        params: { projectId: currentProject.id },
+                        search: { view: 'split' },
+                      }),
+                    )
+                  }
+                >
+                  <Columns2 className="size-4" />
+                  <span>Split view</span>
+                </CommandItem>
               </CommandGroup>
             </>
           ) : null}

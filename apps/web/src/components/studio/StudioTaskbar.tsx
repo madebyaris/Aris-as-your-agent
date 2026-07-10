@@ -28,6 +28,8 @@ import {
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { cn } from '@/lib/utils'
 import { useSidebar } from '@/components/ui/sidebar'
+import { useState } from 'react'
+import { MasterChatSheet } from './MasterChatSheet'
 import { useStudioRun } from './studio-run-context'
 
 type StudioTaskbarProps = {
@@ -39,6 +41,7 @@ export function StudioTaskbar({ onOpenCommand }: StudioTaskbarProps) {
   const navigate = useNavigate()
   const { state: sidebarState, isMobile } = useSidebar()
   const { activeRun, clearRun } = useStudioRun()
+  const [masterOpen, setMasterOpen] = useState(false)
   const projectsQuery = useQuery({ queryKey: ['projects'], queryFn: listProjects })
   const settingsQuery = useQuery({ queryKey: ['settings'], queryFn: getSettings })
   const projects = projectsQuery.data?.projects ?? []
@@ -54,12 +57,6 @@ export function StudioTaskbar({ onOpenCommand }: StudioTaskbarProps) {
     } catch {
       toast.error('Could not stop the run')
     }
-  }
-
-  function openMasterChat() {
-    toast.message('Master chat is next', {
-      description: 'Control-plane chat for projects, credentials, and status.',
-    })
   }
 
   const insetLeft =
@@ -122,9 +119,9 @@ export function StudioTaskbar({ onOpenCommand }: StudioTaskbarProps) {
 
         <button
           type="button"
-          onClick={openMasterChat}
-          aria-label="Open Master chat"
-          title="Master chat"
+          onClick={() => setMasterOpen(true)}
+          aria-label="Open Master"
+          title="Master"
           className={cn(
             'relative z-10 -my-1 flex size-12 shrink-0 items-center justify-center rounded-full',
             'bg-foreground text-background',
@@ -246,6 +243,11 @@ export function StudioTaskbar({ onOpenCommand }: StudioTaskbarProps) {
         </div>
         </div>
       </div>
+      <MasterChatSheet
+        open={masterOpen}
+        onOpenChange={setMasterOpen}
+        onOpenCommand={onOpenCommand}
+      />
     </div>
   )
 }
