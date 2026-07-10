@@ -1,6 +1,7 @@
 export {
   ARIS_WORKSPACE_ROOT,
   createSessionWorkspace,
+  getActiveAccount,
   getActiveApiKey,
   readSettings,
   removeAccount,
@@ -11,10 +12,14 @@ export {
 
 export {
   ARIS_DEFAULT_MODEL,
+  ARIS_DEFAULT_OPENROUTER_MODEL,
+  ARIS_OPENROUTER_PREFERRED_MODELS,
   ARIS_PREFERRED_MODELS,
   cancelRun,
+  defaultModelForProvider,
   labelForModelId,
   listModels,
+  preferredModelsForProvider,
   sortModelsForArisPicker,
   validateApiKey,
 } from '@aris/agent'

@@ -1,7 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
 import {
-  ARIS_DEFAULT_MODEL,
-  ARIS_PREFERRED_MODELS,
   ARIS_WORKSPACE_ROOT,
   BOARD_COLUMNS,
   appendChatLine,
@@ -14,7 +12,9 @@ import {
   createSessionWorkspace,
   createServerTaskPlan,
   createTasksFromPlan,
+  defaultModelForProvider,
   deleteNote,
+  getActiveAccount,
   getActiveApiKey,
   getProject,
   getServer,
@@ -26,6 +26,7 @@ import {
   mkdir,
   openProjectFromPath,
   phasePrompt,
+  preferredModelsForProvider,
   readChatHistory,
   readNotesRegistry,
   readProjectsRegistry,
@@ -50,6 +51,7 @@ import type { NoteVisibility } from '@aris/notes'
 import type { ServerAuthType } from '@aris/server'
 import type { BoardColumn, ProofLabel } from '@aris/tasks'
 import type { TaskPriority } from '@aris/core'
+import type { ArisProvider } from '@aris/workspace'
 
 export const getHealth = createServerFn({ method: 'GET' }).handler(async () => {
   return {
@@ -70,14 +72,18 @@ export const getLandingState = createServerFn({ method: 'GET' }).handler(async (
 
 export const getSettings = createServerFn({ method: 'GET' }).handler(async () => {
   const settings = await readSettings()
-  const apiKey = getActiveApiKey(settings)
+  const active = getActiveAccount(settings)
+  const provider = active?.provider ?? settings.defaultProvider ?? 'cursor'
   return {
-    hasApiKey: Boolean(apiKey),
-    defaultModel: settings.defaultModel ?? ARIS_DEFAULT_MODEL,
+    hasApiKey: Boolean(active?.apiKey ?? getActiveApiKey(settings)),
+    defaultModel: settings.defaultModel ?? defaultModelForProvider(provider),
+    defaultProvider: provider,
     activeAccountId: settings.activeAccountId,
+    activeProvider: provider,
     accounts: (settings.accounts ?? []).map((a) => ({
       id: a.id,
       label: a.label,
+      provider: a.provider,
       createdAt: a.createdAt,
       keyHint: a.apiKey.slice(0, 8) + '…',
     })),
@@ -88,30 +94,45 @@ export const getSettings = createServerFn({ method: 'GET' }).handler(async () =>
 })
 
 export const saveApiKey = createServerFn({ method: 'POST' })
-  .validator((data: { apiKey: string; label?: string; defaultModel?: string }) => data)
+  .validator(
+    (data: {
+      apiKey: string
+      label?: string
+      defaultModel?: string
+      provider?: ArisProvider
+    }) => data,
+  )
   .handler(async ({ data }) => {
     const apiKey = data.apiKey.trim()
     if (!apiKey) throw new Error('API key is required.')
-    await validateApiKey(apiKey)
+    const provider = data.provider ?? 'cursor'
+    await validateApiKey(apiKey, provider)
     await upsertAccount({
       label: data.label?.trim() || 'Default',
       apiKey,
+      provider,
       makeActive: true,
     })
     if (data.defaultModel) {
       const settings = await readSettings()
-      await writeSettings({ ...settings, defaultModel: data.defaultModel })
+      await writeSettings({
+        ...settings,
+        defaultModel: data.defaultModel,
+        defaultProvider: provider,
+      })
     }
     return { ok: true }
   })
 
 export const addAccountFn = createServerFn({ method: 'POST' })
-  .validator((data: { label: string; apiKey: string }) => data)
+  .validator((data: { label: string; apiKey: string; provider?: ArisProvider }) => data)
   .handler(async ({ data }) => {
-    await validateApiKey(data.apiKey.trim())
+    const provider = data.provider ?? 'cursor'
+    await validateApiKey(data.apiKey.trim(), provider)
     return upsertAccount({
       label: data.label.trim() || 'Account',
       apiKey: data.apiKey.trim(),
+      provider,
       makeActive: true,
     })
   })
@@ -125,36 +146,50 @@ export const removeAccountFn = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => removeAccount(data.accountId))
 
 export const setDefaultModelFn = createServerFn({ method: 'POST' })
-  .validator((data: { model: string }) => data)
+  .validator((data: { model: string; provider?: ArisProvider }) => data)
   .handler(async ({ data }) => {
     const settings = await readSettings()
-    await writeSettings({ ...settings, defaultModel: data.model })
+    const active = getActiveAccount(settings)
+    const provider = data.provider ?? active?.provider ?? settings.defaultProvider ?? 'cursor'
+    await writeSettings({
+      ...settings,
+      defaultModel: data.model,
+      defaultProvider: provider,
+    })
     return { ok: true }
   })
 
 export const listModelsFn = createServerFn({ method: 'GET' }).handler(async () => {
   const settings = await readSettings()
-  const apiKey = getActiveApiKey(settings)
+  const active = getActiveAccount(settings)
+  const provider = active?.provider ?? settings.defaultProvider ?? 'cursor'
+  const preferred = preferredModelsForProvider(provider)
+  const apiKey = active?.apiKey
   if (!apiKey) {
     return {
-      models: ARIS_PREFERRED_MODELS.map((m) => ({
+      provider,
+      models: preferred.map((m) => ({
         id: m.id,
         displayName: m.label,
         preferred: true as const,
       })),
-      preferredIds: ARIS_PREFERRED_MODELS.map((m) => m.id),
-      defaultModel: ARIS_DEFAULT_MODEL,
+      preferredIds: preferred.map((m) => m.id),
+      defaultModel: defaultModelForProvider(provider),
     }
   }
-  const models = await listModels(apiKey)
+  const models = await listModels(apiKey, provider)
   const mapped = models.map((m) => ({
     id: m.id,
-    displayName: labelForModelId(m.id) ?? (m as { displayName?: string }).displayName ?? m.id,
+    displayName:
+      labelForModelId(m.id, provider) ??
+      (m as { displayName?: string }).displayName ??
+      m.id,
   }))
   return {
-    models: sortModelsForArisPicker(mapped),
-    preferredIds: ARIS_PREFERRED_MODELS.map((m) => m.id),
-    defaultModel: ARIS_DEFAULT_MODEL,
+    provider,
+    models: sortModelsForArisPicker(mapped, provider),
+    preferredIds: preferred.map((m) => m.id),
+    defaultModel: settings.defaultModel ?? defaultModelForProvider(provider),
   }
 })
 

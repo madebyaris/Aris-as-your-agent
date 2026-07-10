@@ -1,16 +1,33 @@
 import { Agent, Cursor } from "@cursor/sdk"
 import type { StreamEmitter } from "@aris/stream"
-import { resolveArisModelId } from "./models"
+import {
+  defaultModelForProvider,
+  resolveArisModelId,
+  type ArisProvider,
+} from "./models"
+import {
+  cancelOpenRouterRun,
+  listOpenRouterModels,
+  resolveProviderEnvFallback,
+  streamOpenRouterResponse,
+  validateOpenRouterApiKey,
+} from "./openrouter"
 
 export {
   ARIS_DEFAULT_MODEL,
+  ARIS_DEFAULT_OPENROUTER_MODEL,
+  ARIS_DEFAULT_PROVIDER,
+  ARIS_OPENROUTER_PREFERRED_MODELS,
   ARIS_PREFERRED_MODELS,
+  defaultModelForProvider,
   isPreferredModelId,
   labelForModelId,
   preferredModelRank,
+  preferredModelsForProvider,
   resolveArisModelId,
   sortModelsForArisPicker,
   type ArisPreferredModel,
+  type ArisProvider,
   type ListedModel,
 } from "./models"
 
@@ -32,16 +49,28 @@ const ARIS_SYSTEM_PREFIX = [
   "Software never finishes — continue existing projects; do not restart unless asked.",
 ].join("\n")
 
-export async function validateApiKey(apiKey: string) {
+export async function validateApiKey(
+  apiKey: string,
+  provider: ArisProvider = "cursor",
+) {
+  if (provider === "openrouter") {
+    return validateOpenRouterApiKey(apiKey)
+  }
   return Cursor.me({ apiKey })
 }
 
-export async function listModels(apiKey: string) {
+export async function listModels(
+  apiKey: string,
+  provider: ArisProvider = "cursor",
+) {
+  if (provider === "openrouter") {
+    return listOpenRouterModels(apiKey)
+  }
   return Cursor.models.list({ apiKey })
 }
 
 export async function createOrResumeAgent(options: CreateArisAgentOptions) {
-  const modelId = resolveArisModelId(options.model)
+  const modelId = resolveArisModelId(options.model, "cursor")
   const local = {
     cwd: options.workspacePath,
     ...(options.loadProjectConfig !== false
@@ -98,6 +127,7 @@ type ActiveRun = {
 const activeRuns = new Map<string, ActiveRun>()
 
 export function cancelRun(runKey: string) {
+  if (cancelOpenRouterRun(runKey)) return true
   const run = activeRuns.get(runKey)
   if (run) {
     void run.cancel()
@@ -109,9 +139,11 @@ export function cancelRun(runKey: string) {
 
 /**
  * Stream an agent response with token-level deltas when available.
+ * Routes by `provider` (ADR 014): Cursor = full harness; OpenRouter = lite.
  */
 export async function streamArisResponse(options: {
   apiKey?: string
+  provider?: ArisProvider
   workspacePath: string
   userMessage: string
   model?: string
@@ -126,7 +158,6 @@ export async function streamArisResponse(options: {
   onAgentId?: (agentId: string) => void | Promise<void>
 }): Promise<{ agentId?: string; proofLabel?: string }> {
   const {
-    apiKey,
     workspacePath,
     userMessage,
     model,
@@ -141,17 +172,42 @@ export async function streamArisResponse(options: {
     onAgentId,
   } = options
 
-  if (!apiKey?.trim()) {
-    emit({ type: "error", message: "CURSOR_API_KEY is required. Add an account in Studio → Accounts." })
+  const provider: ArisProvider = options.provider ?? "cursor"
+  const apiKey =
+    options.apiKey?.trim() || resolveProviderEnvFallback(provider)
+
+  if (!apiKey) {
+    const hint =
+      provider === "openrouter"
+        ? "OPENROUTER_API_KEY is required. Add an OpenRouter account in Studio → Accounts."
+        : "CURSOR_API_KEY is required. Add a Cursor account in Studio → Accounts."
+    emit({ type: "error", message: hint })
     emit({ type: "done", ok: false })
     return {}
+  }
+
+  const prompt = buildArisPrompt(userMessage, workspacePath, {
+    agentNotes,
+    projectMode,
+    phaseHint,
+  })
+
+  if (provider === "openrouter") {
+    const result = await streamOpenRouterResponse({
+      apiKey,
+      prompt,
+      model: model ?? defaultModelForProvider("openrouter"),
+      runKey,
+      emit,
+    })
+    return { proofLabel: result.proofLabel }
   }
 
   let agent: Awaited<ReturnType<typeof createOrResumeAgent>> | undefined
   let proofLabel: string | undefined
 
   try {
-    await validateApiKey(apiKey)
+    await validateApiKey(apiKey, "cursor")
     agent = await createOrResumeAgent({
       apiKey,
       workspacePath,
@@ -164,12 +220,6 @@ export async function streamArisResponse(options: {
       emit({ type: "agent_id", agentId: resolvedId })
       await onAgentId?.(resolvedId)
     }
-
-    const prompt = buildArisPrompt(userMessage, workspacePath, {
-      agentNotes,
-      projectMode,
-      phaseHint,
-    })
 
     const run = await agent.send(prompt, {
       ...(mode ? { mode } : {}),
@@ -207,13 +257,10 @@ export async function streamArisResponse(options: {
       cancel: () => run.cancel(),
     })
 
-    // Also consume stream for non-delta environments / completeness
     for await (const event of run.stream()) {
       if (event.type === "assistant") {
         for (const block of event.message.content) {
-          if (block.type === "text") {
-            // Prefer onDelta; only emit if we somehow got a full block without deltas
-          } else if (block.type === "tool_use") {
+          if (block.type === "tool_use") {
             emit({
               type: "tool_call",
               callId: block.id,

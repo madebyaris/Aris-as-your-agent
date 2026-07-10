@@ -213,7 +213,7 @@ export function StudioShell({ children }: { children: ReactNode }) {
                             : 'bg-sidebar-foreground/25',
                         )}
                       />
-                      {settingsQuery.data?.hasApiKey ? 'Cursor connected' : 'Connect Cursor'}
+                      {settingsQuery.data?.hasApiKey ? 'Provider connected' : 'Connect provider'}
                     </p>
                   </div>
                   <ChevronRight className="size-3.5 opacity-35" />

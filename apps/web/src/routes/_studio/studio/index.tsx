@@ -107,10 +107,10 @@ function StudioHomePage() {
           <div className="mx-auto mb-5 flex size-11 items-center justify-center rounded-xl border bg-muted/50">
             <KeyRound className="size-5" />
           </div>
-          <h1 className="text-xl font-semibold tracking-tight">Connect Cursor to begin</h1>
+          <h1 className="text-xl font-semibold tracking-tight">Connect a provider to begin</h1>
           <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-muted-foreground">
-            Aris runs through your Cursor account. Your API key remains in local settings on
-            this machine.
+            Add a Cursor account for the full local harness, or OpenRouter for lite chat. Keys stay
+            in local settings on this machine.
           </p>
           <Button asChild className="mt-6">
             <Link to="/accounts">

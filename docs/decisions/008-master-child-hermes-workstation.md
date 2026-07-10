@@ -95,14 +95,17 @@ All clients share Master/Child semantics; none own the project filesystem.
 - **Move project to workstation** = register/open path on the Win11 node (sync/git/clone as operational detail — not magic FS share in v1).
 - Mac can remain UI-only later, or run a local node for laptop-only work; **one active execution node per session** (explicit switch in Master).
 - Win11 is a **first-class future node OS** (testing), not a rewrite — same `@aris/*` + Tauri/web clients where possible. Windows packaging may lag Mac (ADR 005 Mac-first).
+- **Always-on:** the execution node (single local machine or workstation) can run as a daemon so Hermes/mobile work when the UI is closed — [ADR 011](./011-always-on-node.md). Requires unlock + Command API auth (ADR 010).
 
 ### 5. Sequencing
 
 1. Master + Child on **one local node** (current Mac) — no Hermes yet.  
 2. Stable **Command API** (Master + Project/Child) + auth suitable for a second client.  
-3. Hermes/WhatsApp adapter as an external consumer of that API.  
-4. Second node (Win11 workstation) + “active node” + move/open project on remote node.  
-5. Mac as thin client against workstation when desired.
+3. Studio unlock + pairing ([ADR 010](./010-studio-unlock-and-command-auth.md)).  
+4. **Always-on node daemon** ([ADR 011](./011-always-on-node.md)).  
+5. Hermes/WhatsApp adapter as an external consumer of that API.  
+6. Second node (Win11 workstation) + “active node” + move/open project on remote node.  
+7. Mac as thin client against workstation when desired.
 
 ## Non-goals (now)
 
@@ -115,5 +118,6 @@ All clients share Master/Child semantics; none own the project filesystem.
 
 - Command API must expose **both** Master and project-scoped Child operations with clear auth and `projectId` requirements.
 - Secrets and MCP OAuth stay on the **execution node** (ADR 004, 007); Hermes never holds SSH/MCP secrets.
+- Unlock + Command API auth: [ADR 010](./010-studio-unlock-and-command-auth.md) — required before Hermes / multi-client exposure.
 - Progress/task-list: Hermes + workstation are **planned later**; Master/Child split is the near-term product shape.
 - PRODUCT.md: multi-surface + workstation intent should stay visible to design.

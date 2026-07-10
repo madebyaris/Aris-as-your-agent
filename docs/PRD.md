@@ -1,6 +1,6 @@
 # PRD: Aris-as-your-agent
 
-> **Product:** A local-first **agent studio** — kanban that runs the senior-dev process, plus immediate chat, notes, servers, and accounts. Powered by Cursor SDK.
+> **Product:** A local-first **agent studio** — kanban that runs the senior-dev process, plus immediate chat, notes, servers, and accounts. **Cursor SDK** is the full harness; **OpenRouter** is an alternate lite provider ([ADR 014](./decisions/014-multi-harness-providers.md)).
 >
 > **Author:** [Aris Setiawan](https://madebyaris.com) · [github.com/madebyaris](https://github.com/madebyaris)
 >
@@ -40,7 +40,7 @@ Supporting surfaces (sidebar / settings drawers):
 | **Projects** | One project = one folder on disk. Create by picking/creating a directory. |
 | **Notes** | Private vs agent-visible context, scoped to project (or global). |
 | **Servers** | SSH targets + credentials (backup-before-mutate). |
-| **Accounts** | Cursor API key(s), default model (prefer **Composer 2.5** + **Grok 4.5** — [ADR 009](./decisions/009-preferred-models.md)), optional named profiles. |
+| **Accounts** | Provider accounts (**Cursor** full harness + **OpenRouter** lite — [ADR 014](./decisions/014-multi-harness-providers.md)); default model scoped to active provider (Cursor prefers **Composer 2.5** + **Grok 4.5** — [ADR 009](./decisions/009-preferred-models.md)). |
 
 ### Example flows
 
@@ -285,7 +285,7 @@ Visual direction: dense **agent studio** (Linear/Cursor-adjacent), not a marketi
 | `/studio/$projectId/chat` | Immediate chat |
 | `/notes` | Global notes (also project-scoped in studio) |
 | `/servers` | SSH registry |
-| `/accounts` | Cursor API key / model profiles |
+| `/accounts` | Provider API keys (Cursor / OpenRouter) + model profiles |
 | `/api/chat` | SSE — stream agent events |
 | `/api/board/*` | Task move / run phase (Phase 1+) |
 
@@ -368,7 +368,11 @@ MCP servers are added **manually** in Studio, **via Master tool calls**, or mark
 
 ### Master / Child + workstation (planned)
 
-**Master** = control plane; **Child** = per-project execution. Hermes (e.g. WhatsApp) is an external commander that can drive **Master and project/Child** work via the Command API. Mobile/Mac are Studio clients. Later, a Win11 **workstation** can be the execution node. See [ADR 008](./decisions/008-master-child-hermes-workstation.md).
+**Master** = control plane; **Child** = per-project execution. Hermes (e.g. WhatsApp) is an external commander that can drive **Master and project/Child** work via the Command API. Mobile/Mac are Studio clients. Later, a Win11 **workstation** can be the execution node. The node can run **always-on** (daemon) so remote command works without the UI open — [ADR 011](./decisions/011-always-on-node.md). Away / phone access: Cloudflare Zero Trust + Tunnel (e.g. `agent.madebyaris.com`) — [ADR 012](./decisions/012-cloudflare-zero-trust-remote.md). See also [ADR 008](./decisions/008-master-child-hermes-workstation.md).
+
+### Data & history (planned)
+
+**Node-local source of truth** (decentralized): each execution node owns DB/history; no required central cloud DB. Project sidecar travels with the folder; secrets never sync. Optional non-secret sync later. See [ADR 013](./decisions/013-node-local-data.md).
 
 ---
 
@@ -378,8 +382,12 @@ MCP servers are added **manually** in Studio, **via Master tool calls**, or mark
 - SDK runs in Node server process, not client
 - Server mutations require backup record (`backupRequired: true`)
 - Private notes excluded from `formatNotesForAgentContext()`
-- v1: local files; Phase 2: encryption at rest for secrets
-- No public deployment without auth + per-user storage
+- v1: local files under `~/aris-secrets` (mode 0600); later: unlock-gated encryption + OS Keychain/DPAPI
+- **Studio unlock** (password and/or biometric) even on local nodes before UI/agent use when multi-client or Hermes is in play — [ADR 010](./decisions/010-studio-unlock-and-command-auth.md)
+- **Command API**: paired device tokens + least-privilege (Master vs Child/`projectId`); Hermes never holds Cursor/SSH/MCP secrets
+- Master/Child trust boundary: Child is project-scoped; no raw SDK to external commanders
+- No public / LAN exposure without unlock + Command API auth
+- **Remote / phone while away:** Cloudflare Zero Trust + Tunnel to a hostname such as `agent.madebyaris.com` (outer gate); Aris unlock + tokens remain inner — [ADR 012](./decisions/012-cloudflare-zero-trust-remote.md)
 
 ---
 

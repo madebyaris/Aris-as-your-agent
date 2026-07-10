@@ -9,7 +9,8 @@ Single home for product docs, architecture, UI, decisions, and progress.
 | [progress.md](./progress.md) | v1 milestone tracker (M0–M7) with proof labels |
 | [architecture.md](./architecture.md) | Monorepo seams, agent/SSE flow, storage map |
 | [ui.md](./ui.md) | Design system, IA, board/chat interaction |
-| [decisions/](./decisions/) | ADRs: Tauri, memory, MCP, Master/Child, [preferred models](./decisions/009-preferred-models.md) |
+| [decisions/](./decisions/) | ADRs through [multi-harness providers](./decisions/014-multi-harness-providers.md) (Cursor + OpenRouter) |
+| [presentations/aris-architecture/](./presentations/aris-architecture/) | Interactive HTML architecture deck |
 
 ## How to track progress
 

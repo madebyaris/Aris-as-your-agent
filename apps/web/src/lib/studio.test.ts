@@ -83,7 +83,25 @@ describe('settings migration', () => {
     const next = migrateSettingsForTest({ cursorApiKey: 'cursor_test_key' })
     expect(next.accounts?.length).toBe(1)
     expect(next.accounts?.[0]?.apiKey).toBe('cursor_test_key')
+    expect(next.accounts?.[0]?.provider).toBe('cursor')
     expect(next.activeAccountId).toBeTruthy()
+    expect(next.defaultProvider).toBe('cursor')
+  })
+
+  it('defaults missing provider on existing accounts to cursor', () => {
+    const next = migrateSettingsForTest({
+      accounts: [
+        {
+          id: 'a1',
+          label: 'Old',
+          apiKey: 'key',
+          createdAt: '2026-01-01',
+        },
+      ],
+      activeAccountId: 'a1',
+    })
+    expect(next.accounts?.[0]?.provider).toBe('cursor')
+    expect(next.defaultProvider).toBe('cursor')
   })
 })
 

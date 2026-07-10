@@ -293,6 +293,45 @@ See [ADR 008](./decisions/008-master-child-hermes-workstation.md).
 - [ ] Active execution node + open/move project onto Win11 workstation
 - [ ] Mac Tauri + mobile web as clients against workstation when ready
 
+## Planned — Studio unlock + Command API security
+
+See [ADR 010](./decisions/010-studio-unlock-and-command-auth.md). Do before exposing Hermes / LAN.
+
+- [ ] Studio unlock: password/PIN (hashed); biometric via Tauri when available
+- [ ] Auto-lock + refuse agent/server fns while locked
+- [ ] Device pairing + rotatable tokens for Hermes / mobile
+- [ ] Capability ACL: Master vs Child/`projectId`; step-up for destructive ops
+- [ ] Encrypt `~/aris-secrets` with unlock-derived / Keychain-backed key
+- [ ] Local audit log for Command API + agent starts
+
+## Planned — Always-on execution node
+
+See [ADR 011](./decisions/011-always-on-node.md). After unlock + Command API.
+
+- [ ] Split **aris-node** daemon from UI (tray/status)
+- [ ] Always-on setting: start at login (launchd / Windows Service)
+- [ ] Optional stay-awake while armed / run active
+- [ ] Remote accept only with ADR 010 auth; default loopback
+- [ ] Health: online · always-on · locked · paired device count
+
+## Planned — Remote phone access (Cloudflare Zero Trust)
+
+See [ADR 012](./decisions/012-cloudflare-zero-trust-remote.md). After always-on + unlock.
+
+- [ ] Cloudflare Tunnel from node (loopback only) to `agent.madebyaris.com` (or user domain)
+- [ ] Zero Trust Access policy (email / IdP / OTP)
+- [ ] Mobile Studio UI smoke over Access
+- [ ] Settings: remote URL + tunnel status
+- [ ] Optional: Hermes API on same protected hostname
+
+## Planned — Node-local data & history
+
+See [ADR 013](./decisions/013-node-local-data.md).
+
+- [ ] Keep project history in sidecar; migrate node registry toward SQLite
+- [ ] Master memory + audit on node (no central cloud DB)
+- [ ] Secrets never sync; optional non-secret registry sync between paired nodes (later)
+
 ---
 
-*Last updated: 2026-07-10 — ADR 005–008*
+*Last updated: 2026-07-10 — ADR 005–013*

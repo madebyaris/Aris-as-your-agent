@@ -13,7 +13,10 @@
   "dependencies": {
     "@aris/stream": "workspace:*",
     "@aris/workspace": "workspace:*",
-    "@cursor/sdk": "^1.0.23"
+    "@cursor/sdk": "^1.0.23",
+    "@openrouter/ai-sdk-provider": "^3.0.0",
+    "ai": "^7.0.19",
+    "zod": "^4.1.8"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

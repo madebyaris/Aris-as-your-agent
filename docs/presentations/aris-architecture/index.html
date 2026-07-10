@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Aris (studio) as your Agent</title>
+  <link rel="icon" href="assets/logo.png" type="image/png" />
+  <style>
+    :root {
+      --bg: oklch(0.992 0.002 85);
+      --fg: oklch(0.18 0.006 70);
+      --muted: oklch(0.52 0.008 70);
+      --surface: oklch(0.997 0.001 85);
+      --panel: oklch(0.963 0.003 80);
+      --border: oklch(0.9 0.004 75);
+      --accent: oklch(0.18 0.006 70);
+      --ok: oklch(0.45 0.12 150);
+      --warn: oklch(0.55 0.12 70);
+      --danger: oklch(0.5 0.16 25);
+      --font: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+      --mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      --radius: 12px;
+      --ease: cubic-bezier(0.25, 1, 0.5, 1);
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--font);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .deck {
+      height: 100%;
+      display: grid;
+      grid-template-columns: 220px 1fr;
+    }
+
+    .rail {
+      border-right: 1px solid var(--border);
+      background: var(--panel);
+      padding: 20px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow: auto;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 6px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand img {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      object-fit: cover;
+    }
+    .brand strong {
+      display: block;
+      font-size: 13px;
+      letter-spacing: -0.02em;
+    }
+    .brand span {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .nav {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 1;
+    }
+    .nav button {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      text-align: left;
+      padding: 9px 10px;
+      border-radius: 8px;
+      font: inherit;
+      font-size: 12.5px;
+      color: var(--muted);
+      cursor: pointer;
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+      transition: background 160ms var(--ease), color 160ms var(--ease);
+    }
+    .nav button:hover { background: color-mix(in oklab, var(--fg) 6%, transparent); color: var(--fg); }
+    .nav button.active {
+      background: var(--fg);
+      color: var(--bg);
+    }
+    .nav .idx {
+      font-family: var(--mono);
+      font-size: 10px;
+      opacity: 0.7;
+      min-width: 1.4em;
+    }
+
+    .hints {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.45;
+      padding: 8px 6px 0;
+      border-top: 1px solid var(--border);
+    }
+    .hints kbd {
+      font-family: var(--mono);
+      font-size: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 4px;
+      padding: 1px 5px;
+      color: var(--fg);
+    }
+
+    .stage-wrap {
+      position: relative;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .topbar {
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in oklab, var(--surface) 92%, transparent);
+      backdrop-filter: blur(8px);
+    }
+    .progress {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--border);
+      border: 0;
+      padding: 0;
+      cursor: pointer;
+    }
+    .dot.active { background: var(--fg); transform: scale(1.15); }
+    .topbar .actions { display: flex; gap: 8px; }
+    .icon-btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 8px;
+      height: 30px;
+      padding: 0 10px;
+      font: inherit;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--fg);
+    }
+    .icon-btn:hover { background: var(--panel); }
+
+    .stage {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 40%, color-mix(in oklab, var(--panel) 80%, transparent), var(--bg));
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      padding: 20px 24px;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateX(14px);
+      transition: opacity 220ms var(--ease), transform 220ms var(--ease);
+      overflow: auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 0;
+    }
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateX(0);
+      z-index: 1;
+    }
+    .slide-inner {
+      width: min(100%, 1080px);
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 0;
+      padding: 40px 44px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: calc(var(--radius) + 6px);
+      box-shadow: 0 18px 48px color-mix(in oklab, var(--fg) 6%, transparent);
+      min-height: min(78vh, 720px);
+    }
+
+    .eyebrow {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0 0 10px;
+    }
+    h1 {
+      font-size: clamp(30px, 4vw, 48px);
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      margin: 0 0 14px;
+      font-weight: 600;
+      max-width: 18ch;
+    }
+    h2 {
+      font-size: clamp(22px, 2.8vw, 32px);
+      letter-spacing: -0.025em;
+      margin: 0 0 10px;
+      font-weight: 600;
+      max-width: 28ch;
+    }
+    .lede {
+      font-size: 16px;
+      line-height: 1.55;
+      color: var(--muted);
+      max-width: 48ch;
+      margin: 0 0 22px;
+    }
+
+    .hero {
+      position: relative;
+      border: 0;
+      border-radius: 0;
+      overflow: hidden;
+      background: transparent;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 8px;
+      align-items: end;
+    }
+    .hero-copy {
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 8px;
+      z-index: 1;
+    }
+    .hero-art {
+      position: relative;
+      background:
+        linear-gradient(90deg, var(--surface) 0%, transparent 28%),
+        url("assets/hero.png") 55% center / cover no-repeat;
+      min-height: 320px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+    }
+    .hero-meta {
+      margin-top: 22px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 28px;
+      align-items: baseline;
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--muted);
+    }
+    .hero-meta strong {
+      color: var(--fg);
+      font-weight: 600;
+    }
+    .hero-meta a {
+      color: var(--fg);
+      text-decoration: none;
+      border-bottom: 1px solid color-mix(in oklab, var(--fg) 22%, transparent);
+    }
+    .hero-meta a:hover {
+      border-bottom-color: var(--fg);
+    }
+    .hero-meta .product {
+      font-size: 12px;
+      letter-spacing: 0.02em;
+    }
+    .hero-meta .contact {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 14px;
+    }
+    .hero-meta .contact span {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-right: 2px;
+    }
+    /* Title/close heroes sit flush inside the card — drop nested chrome */
+    .slide-inner > .hero {
+      margin: -4px 0;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .hero-badge img {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 16px 14px;
+    }
+    .card h3 {
+      margin: 0 0 6px;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+    }
+    .card p {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--muted);
+    }
+    .card .tag {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .card.emphasis {
+      background: var(--fg);
+      color: var(--bg);
+      border-color: var(--fg);
+    }
+    .card.emphasis p { color: color-mix(in oklab, var(--bg) 72%, transparent); }
+    .card.emphasis .tag { color: color-mix(in oklab, var(--bg) 60%, transparent); }
+
+    .stat {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      background: var(--surface);
+    }
+    .stat b {
+      display: block;
+      font-size: 18px;
+      letter-spacing: -0.02em;
+      margin-bottom: 4px;
+    }
+    .stat span {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    table.sheet {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    table.sheet th,
+    table.sheet td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    table.sheet th {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-weight: 600;
+      background: var(--panel);
+    }
+    table.sheet tr:last-child td { border-bottom: 0; }
+    code, .mono {
+      font-family: var(--mono);
+      font-size: 0.92em;
+    }
+
+    .callout {
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--fg);
+      border-radius: 8px;
+      padding: 12px 14px;
+      background: var(--panel);
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--muted);
+      max-width: 70ch;
+    }
+    .callout strong { color: var(--fg); }
+
+    .diagram {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--panel);
+      padding: 12px 10px;
+    }
+    .diagram svg {
+      width: 100%;
+      max-width: 640px;
+      height: auto;
+      display: block;
+      margin: 0 auto;
+    }
+
+    .pain-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .pain-list li {
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--muted);
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+    .pain-list li strong {
+      color: var(--fg);
+      display: inline;
+      margin-right: 0;
+    }
+    .pain-list.compact {
+      gap: 4px;
+    }
+    .pain-list.compact li {
+      padding: 6px 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      border-bottom: 1px solid var(--border);
+    }
+    .pain-list.compact li:last-child { border-bottom: 0; padding-bottom: 0; }
+    .card.emphasis .pain-list li,
+    .card.emphasis .pain-list li strong { color: inherit; }
+    .card.emphasis .pain-list.compact li {
+      border-bottom-color: color-mix(in oklab, var(--bg) 18%, transparent);
+      color: color-mix(in oklab, var(--bg) 72%, transparent);
+    }
+    .card.emphasis .pain-list.compact li strong { color: var(--bg); }
+
+    .why-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .why-row {
+      display: grid;
+      grid-template-columns: 72px 1fr;
+      gap: 12px;
+      align-items: start;
+    }
+    .why-row .tag { margin: 2px 0 0; }
+    .why-row h3 { margin-top: 0; }
+
+    .footer-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .footer-nav button {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      border-radius: 8px;
+      height: 34px;
+      padding: 0 14px;
+      font: inherit;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .footer-nav button:hover:not(:disabled) { background: var(--panel); }
+    .footer-nav button:disabled { opacity: 0.35; cursor: default; }
+    .footer-nav .count {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .pill {
+      font-size: 12px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 4px 10px;
+      background: var(--panel);
+      color: var(--fg);
+    }
+    .pill.dark {
+      background: var(--fg);
+      color: var(--bg);
+      border-color: var(--fg);
+    }
+
+    @media (max-width: 960px) {
+      .deck { grid-template-columns: 1fr; }
+      .rail { display: none; }
+      .hero { grid-template-columns: 1fr; min-height: 0; }
+      .hero-art { min-height: 160px; order: -1; }
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+      .slide-inner {
+        width: 100%;
+        padding: 22px 18px;
+        box-shadow: none;
+      }
+    }
+
+    @media (min-width: 961px) and (max-height: 820px) {
+      .slide-inner { padding: 28px 32px; min-height: 0; }
+      .hero-art { min-height: 240px; }
+      h1 { font-size: clamp(26px, 3.2vw, 40px); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .slide { transition: none; }
+    }
+
+    :fullscreen .rail { display: none; }
+    :fullscreen .deck { grid-template-columns: 1fr; }
+  </style>
+</head>
+<body>
+  <div class="deck" id="deck">
+    <aside class="rail" aria-label="Slide navigation">
+      <div class="brand">
+        <img src="assets/logo.png" alt="" width="36" height="36" />
+        <div>
+          <strong>Aris (studio)</strong>
+          <span>as your Agent</span>
+        </div>
+      </div>
+      <nav class="nav" id="nav"></nav>
+      <div class="hints">
+        <div><kbd>←</kbd> <kbd>→</kbd> or <kbd>Space</kbd> to navigate</div>
+        <div style="margin-top:6px"><kbd>F</kbd> fullscreen · <kbd>Esc</kbd> exit</div>
+      </div>
+    </aside>
+
+    <div class="stage-wrap">
+      <div class="topbar">
+        <div class="progress" id="dots" aria-label="Progress"></div>
+        <div class="actions">
+          <button class="icon-btn" type="button" id="btnFs" title="Fullscreen (F)">Fullscreen</button>
+        </div>
+      </div>
+
+      <main class="stage" id="stage" tabindex="0">
+        <!-- 0 -->
+        <section class="slide active" data-title="Title">
+          <div class="slide-inner">
+          <div class="hero">
+            <div class="hero-copy">
+              <div class="hero-badge">
+                <img src="assets/logo.png" alt="" />
+                Local-first agent workspace
+              </div>
+              <h1>Aris (studio) as your Agent</h1>
+              <p class="lede" style="margin-bottom:0">
+                A senior-dev workflow you can see and steer — board + chat, on your machine, reachable from phone when you’re away.
+              </p>
+              <div class="hero-meta">
+                <div class="product">Product of <a href="https://madebyaris.com" target="_blank" rel="noopener">madebyaris.com</a></div>
+                <div class="contact">
+                  <span>Contact</span>
+                  <a href="mailto:arissetia.m@gmail.com">arissetia.m@gmail.com</a>
+                  <a href="mailto:aris@madebyaris.com">aris@madebyaris.com</a>
+                </div>
+              </div>
+            </div>
+            <div class="hero-art" role="img" aria-label="Astronaut brand silhouette"></div>
+          </div>
+          </div>
+        </section>
+
+        <!-- 1 -->
+        <section class="slide" data-title="Why">
+          <div class="slide-inner">
+          <p class="eyebrow">Why this exists</p>
+          <h2>Coding agents are powerful. The process is still invisible.</h2>
+          <p class="lede">
+            We built Aris so working with an agent feels like pairing with a senior engineer — not watching a black box dump code.
+          </p>
+          <div class="why-stack">
+            <div class="card why-row">
+              <div class="tag">Why</div>
+              <div>
+                <h3>Continue living products</h3>
+                <p>Software never finishes. You need a workspace that resumes the same folder, board, notes, and chat — session after session.</p>
+              </div>
+            </div>
+            <div class="card why-row">
+              <div class="tag" style="color:var(--warn)">Pain</div>
+              <div>
+                <h3>What breaks today</h3>
+                <ul class="pain-list compact">
+                  <li><strong>Chat-only</strong> — jumps to code; hides research, plan, proof.</li>
+                  <li><strong>Kanban alone</strong> — tracks work but can’t run or interrupt an agent.</li>
+                  <li><strong>Terminal agents</strong> — expert power, weak context for founders/PMs.</li>
+                  <li><strong>Cloud-only control</strong> — hard when you want local files, secrets, offline nodes.</li>
+                </ul>
+              </div>
+            </div>
+            <div class="card emphasis why-row">
+              <div class="tag">Solution</div>
+              <div>
+                <h3>Aris (studio)</h3>
+                <p>Board that <em>runs</em> research → plan → build → review, plus immediate chat. One project = one folder. Local node holds secrets; Master/Child agents; phone via Zero Trust when away.</p>
+              </div>
+            </div>
+          </div>
+          </div>
+        </section>
+
+        <!-- 2 -->
+        <section class="slide" data-title="Stance">
+          <div class="slide-inner">
+          <p class="eyebrow">Product stance</p>
+          <h2>The node is the brain. The edge is the door.</h2>
+          <p class="lede">
+            Cloudflare and Hermes never hold your secrets or run your agents. Execution, folders, and history stay on your machine — Mac today, Win11 workstation later.
+          </p>
+          <div class="grid-4">
+            <div class="stat"><b>Master</b><span>Control plane</span></div>
+            <div class="stat"><b>Child</b><span>Per-project agent</span></div>
+            <div class="stat"><b>Node</b><span>Local SoT + secrets</span></div>
+            <div class="stat"><b>Edge</b><span>CF Zero Trust</span></div>
+          </div>
+          <div class="pill-row" style="margin-top:18px">
+            <span class="pill dark">composer-2.5 · default</span>
+            <span class="pill">grok-4.5 · reasoning</span>
+            <span class="pill">ADR 009</span>
+          </div>
+          </div>
+        </section>
+
+        <!-- 3 -->
+        <section class="slide" data-title="Topology">
+          <div class="slide-inner">
+          <p class="eyebrow">Topology</p>
+          <h2>Clients → Command API → node</h2>
+          <p class="lede">Away traffic hits Access + Tunnel first. At home, Mac can talk to the node directly.</p>
+          <div class="diagram" aria-hidden="false">
+            <svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+                  <path d="M0,0 L6,3 L0,6 Z" fill="#2a2620"/>
+                </marker>
+              </defs>
+              <!-- clients -->
+              <rect x="24" y="28" width="120" height="44" rx="8" fill="#f7f5f1" stroke="#e4e0d8"/>
+              <text x="84" y="55" text-anchor="middle" font-size="13" font-family="system-ui" fill="#2a2620">Phone web</text>
+              <rect x="24" y="92" width="120" height="44" rx="8" fill="#f7f5f1" stroke="#e4e0d8"/>
+              <text x="84" y="119" text-anchor="middle" font-size="13" font-family="system-ui" fill="#2a2620">Mac Tauri</text>
+              <rect x="24" y="156" width="120" height="44" rx="8" fill="#f7f5f1" stroke="#e4e0d8"/>
+              <text x="84" y="183" text-anchor="middle" font-size="13" font-family="system-ui" fill="#2a2620">Hermes</text>
+
+              <rect x="220" y="92" width="140" height="44" rx="8" fill="#1c1915" stroke="#1c1915"/>
+              <text x="290" y="119" text-anchor="middle" font-size="13" font-family="system-ui" fill="#f7f5f1">CF Zero Trust</text>
+
+              <rect x="430" y="92" width="130" height="44" rx="8" fill="#1c1915" stroke="#1c1915"/>
+              <text x="495" y="119" text-anchor="middle" font-size="13" font-family="system-ui" fill="#f7f5f1">Command API</text>
+
+              <rect x="560" y="40" width="130" height="44" rx="8" fill="#f7f5f1" stroke="#e4e0d8"/>
+              <text x="625" y="67" text-anchor="middle" font-size="13" font-family="system-ui" fill="#2a2620">Master</text>
+              <rect x="560" y="144" width="130" height="44" rx="8" fill="#f7f5f1" stroke="#e4e0d8"/>
+              <text x="625" y="171" text-anchor="middle" font-size="13" font-family="system-ui" fill="#2a2620">Child</text>
+
+              <rect x="300" y="250" width="220" height="52" rx="8" fill="#f7f5f1" stroke="#1c1915" stroke-width="1.5"/>
+              <text x="410" y="281" text-anchor="middle" font-size="14" font-family="system-ui" fill="#2a2620">Execution node (always-on)</text>
+
+              <line x1="144" y1="50" x2="220" y2="110" stroke="#c9c3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+              <line x1="144" y1="114" x2="220" y2="114" stroke="#c9c3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+              <line x1="144" y1="178" x2="220" y2="120" stroke="#c9c3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+              <line x1="360" y1="114" x2="430" y2="114" stroke="#c9c3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+              <line x1="560" y1="106" x2="560" y2="70" stroke="#c9c3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+              <line x1="560" y1="122" x2="560" y2="155" stroke="#c9c3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+              <line x1="495" y1="136" x2="430" y2="250" stroke="#c9c3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+              <line x1="625" y1="188" x2="480" y2="250" stroke="#c9c3b8" stroke-width="1.5" marker-end="url(#arrow)"/>
+            </svg>
+          </div>
+          <p class="lede" style="margin:14px 0 0;font-size:13px">Hostname example: <code>https://agent.madebyaris.com</code> · ADR 012</p>
+          </div>
+        </section>
+
+        <!-- 4 -->
+        <section class="slide" data-title="Master / Child">
+          <div class="slide-inner">
+          <p class="eyebrow">Agents</p>
+          <h2>Two separate agents</h2>
+          <div class="grid-2" style="margin-top:8px">
+            <div class="card emphasis">
+              <div class="tag">Master</div>
+              <h3>Control plane</h3>
+              <p>Projects, MCP, accounts, memory promote, active node, status. Taskbar center button. Studio-scoped tools.</p>
+            </div>
+            <div class="card">
+              <div class="tag">Child</div>
+              <h3>Project execution</h3>
+              <p>Board phases, project chat, repo <code>cwd</code>, project MCP. One Child per project. Never mutates global registries.</p>
+            </div>
+          </div>
+          <div class="callout" style="margin-top:16px">
+            <strong>Hermes</strong> is an external commander — it can drive Master <em>and</em> project/Child via the Command API (with <code>projectId</code>). No raw SDK. No secrets.
+          </div>
+          </div>
+        </section>
+
+        <!-- 5 -->
+        <section class="slide" data-title="Security">
+          <div class="slide-inner">
+          <p class="eyebrow">Security</p>
+          <h2>Defense in depth</h2>
+          <p class="lede">Even local nodes get unlock. Remote always stacks Access + Aris auth.</p>
+          <table class="sheet">
+            <thead>
+              <tr><th>Layer</th><th>What</th><th>ADR</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>A · Studio unlock</td><td>Password / biometric · auto-lock</td><td>010</td></tr>
+              <tr><td>B · Command API</td><td>Paired device tokens (Hermes, mobile)</td><td>010</td></tr>
+              <tr><td>C · Authorization</td><td>Master vs Child/<code>projectId</code> ACL</td><td>008+010</td></tr>
+              <tr><td>D · Secrets at rest</td><td><code>aris-secrets</code> → Keychain / DPAPI</td><td>004+010</td></tr>
+              <tr><td>E · Edge</td><td>CF Access + Tunnel · loopback origin</td><td>012</td></tr>
+            </tbody>
+          </table>
+          <div class="callout" style="margin-top:16px">
+            <strong>Hard rule:</strong> unlocking the Mac UI does not authorize Hermes. Always-on and public hostname require unlock + pairing first.
+          </div>
+          </div>
+        </section>
+
+        <!-- 6 -->
+        <section class="slide" data-title="Data">
+          <div class="slide-inner">
+          <p class="eyebrow">Data &amp; history</p>
+          <h2>Decentralized: node-local SoT</h2>
+          <p class="lede">No central cloud database. Each node works independently. Cloudflare is transport only. ADR 013.</p>
+          <div class="grid-3">
+            <div class="card">
+              <div class="tag" style="color:var(--ok)">Travels</div>
+              <h3>Project-bound</h3>
+              <p><code>.aris-workspace/</code> — tasks, chat.jsonl, specs. Moves with git / open-on-other-node.</p>
+            </div>
+            <div class="card">
+              <div class="tag" style="color:var(--warn)">Optional sync</div>
+              <h3>Node registry</h3>
+              <p><code>~/.aris/</code> → SQLite over time. Settings, MCP meta, Master memory, audit, devices.</p>
+            </div>
+            <div class="card">
+              <div class="tag" style="color:var(--danger)">Never sync</div>
+              <h3>Secrets</h3>
+              <p><code>~/aris-secrets</code> — Cursor keys, SSH, MCP tokens. Stay on the node.</p>
+            </div>
+          </div>
+          <div class="callout" style="margin-top:16px">
+            Phone / Hermes see history of the <strong>active always-on node</strong> — not a shared SaaS database.
+          </div>
+          </div>
+        </section>
+
+        <!-- 7 -->
+        <section class="slide" data-title="Remote">
+          <div class="slide-inner">
+          <p class="eyebrow">Away from desk</p>
+          <h2>Phone control via Zero Trust</h2>
+          <p class="lede">Open <code>agent.madebyaris.com</code> on your phone. Access is the outer gate; Aris unlock is the inner gate.</p>
+          <div class="diagram">
+            <svg viewBox="0 0 720 200" xmlns="http://www.w3.org/2000/svg">
+              <rect x="20" y="70" width="100" height="48" rx="8" fill="#f7f5f1" stroke="#e4e0d8"/>
+              <text x="70" y="99" text-anchor="middle" font-size="13" font-family="system-ui" fill="#2a2620">Phone</text>
+              <text x="160" y="99" text-anchor="middle" font-size="18" fill="#9a948a">→</text>
+              <rect x="190" y="54" width="200" height="80" rx="8" fill="#1c1915"/>
+              <text x="290" y="88" text-anchor="middle" font-size="13" font-family="system-ui" fill="#f7f5f1">agent.madebyaris.com</text>
+              <text x="290" y="110" text-anchor="middle" font-size="11" font-family="system-ui" fill="#b8b2a6">Access + Tunnel</text>
+              <text x="430" y="99" text-anchor="middle" font-size="18" fill="#9a948a">→</text>
+              <rect x="460" y="54" width="230" height="80" rx="8" fill="#f7f5f1" stroke="#1c1915" stroke-width="1.5"/>
+              <text x="575" y="88" text-anchor="middle" font-size="13" font-family="system-ui" fill="#2a2620">aris-node (loopback)</text>
+              <text x="575" y="110" text-anchor="middle" font-size="11" font-family="system-ui" fill="#6b655c">UI + Command API</text>
+            </svg>
+          </div>
+          <div class="grid-2" style="margin-top:16px">
+            <div class="card">
+              <h3>Requires</h3>
+              <p>Always-on daemon (011) · unlock + pairing (010) · Tunnel + Access (012)</p>
+            </div>
+            <div class="card">
+              <h3>Does not</h3>
+              <p>Host agents on Workers · store secrets in Cloudflare · replace Hermes tokens</p>
+            </div>
+          </div>
+          </div>
+        </section>
+
+        <!-- 8 -->
+        <section class="slide" data-title="Roadmap">
+          <div class="slide-inner">
+          <p class="eyebrow">Build sequence</p>
+          <h2>Near-term → long-run</h2>
+          <table class="sheet">
+            <thead>
+              <tr><th>#</th><th>Milestone</th><th>Depends</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>1</td><td>Master + Child on this Mac</td><td>Current</td></tr>
+              <tr><td>2</td><td>Studio unlock + Command API</td><td>ADR 010</td></tr>
+              <tr><td>3</td><td>Always-on daemon</td><td>ADR 011</td></tr>
+              <tr><td>4</td><td>CF Tunnel + Access (phone)</td><td>ADR 012</td></tr>
+              <tr><td>5</td><td>Hermes adapter</td><td>010–012</td></tr>
+              <tr><td>6</td><td>Win11 workstation node</td><td>008 + 011</td></tr>
+              <tr><td>7</td><td>Tauri Mac shell</td><td>ADR 005</td></tr>
+            </tbody>
+          </table>
+          <div class="pill-row" style="margin-top:16px">
+            <span class="pill">ADRs 005–013</span>
+            <span class="pill">docs/decisions/</span>
+            <span class="pill">docs/architecture.md</span>
+          </div>
+          </div>
+        </section>
+
+        <!-- 9 -->
+        <section class="slide" data-title="Close">
+          <div class="slide-inner">
+          <div class="hero">
+            <div class="hero-copy">
+              <div class="hero-badge">
+                <img src="assets/logo.png" alt="" />
+                Next slice
+              </div>
+              <h1 style="max-width:14ch">Ship Master chat on one node.</h1>
+              <p class="lede" style="margin-bottom:0">
+                Unlock, always-on, Zero Trust, and Hermes stack after the control plane feels solid.
+              </p>
+            </div>
+            <div class="hero-art"></div>
+          </div>
+          </div>
+        </section>
+      </main>
+
+      <div class="footer-nav">
+        <button type="button" id="btnPrev">Previous</button>
+        <span class="count" id="count">1 / 10</span>
+        <button type="button" id="btnNext">Next</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      const slides = Array.from(document.querySelectorAll(".slide"));
+      const nav = document.getElementById("nav");
+      const dots = document.getElementById("dots");
+      const count = document.getElementById("count");
+      const btnPrev = document.getElementById("btnPrev");
+      const btnNext = document.getElementById("btnNext");
+      const btnFs = document.getElementById("btnFs");
+      const stage = document.getElementById("stage");
+      let i = 0;
+      let touchX = null;
+
+      nav.replaceChildren();
+      dots.replaceChildren();
+
+      slides.forEach((slide, idx) => {
+        const title = slide.dataset.title || `Slide ${idx + 1}`;
+        const b = document.createElement("button");
+        b.type = "button";
+        b.innerHTML = `<span class="idx">${String(idx + 1).padStart(2, "0")}</span><span>${title}</span>`;
+        b.addEventListener("click", () => go(idx));
+        nav.appendChild(b);
+
+        const d = document.createElement("button");
+        d.type = "button";
+        d.className = "dot";
+        d.title = title;
+        d.setAttribute("aria-label", title);
+        d.addEventListener("click", () => go(idx));
+        dots.appendChild(d);
+      });
+
+      function go(n) {
+        i = Math.max(0, Math.min(slides.length - 1, n));
+        slides.forEach((s, idx) => s.classList.toggle("active", idx === i));
+        Array.from(nav.children).forEach((el, idx) => el.classList.toggle("active", idx === i));
+        Array.from(dots.children).forEach((el, idx) => el.classList.toggle("active", idx === i));
+        count.textContent = `${i + 1} / ${slides.length}`;
+        btnPrev.disabled = i === 0;
+        btnNext.disabled = i === slides.length - 1;
+        history.replaceState(null, "", `#${i + 1}`);
+      }
+
+      function next() { go(i + 1); }
+      function prev() { go(i - 1); }
+
+      btnPrev.addEventListener("click", prev);
+      btnNext.addEventListener("click", next);
+
+      btnFs.addEventListener("click", () => {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+        else document.exitFullscreen?.();
+      });
+
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") {
+          e.preventDefault();
+          next();
+        } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
+          e.preventDefault();
+          prev();
+        } else if (e.key === "Home") {
+          e.preventDefault();
+          go(0);
+        } else if (e.key === "End") {
+          e.preventDefault();
+          go(slides.length - 1);
+        } else if (e.key.toLowerCase() === "f") {
+          btnFs.click();
+        }
+      });
+
+      stage.addEventListener("touchstart", (e) => {
+        touchX = e.changedTouches[0].clientX;
+      }, { passive: true });
+      stage.addEventListener("touchend", (e) => {
+        if (touchX == null) return;
+        const dx = e.changedTouches[0].clientX - touchX;
+        touchX = null;
+        if (Math.abs(dx) < 50) return;
+        if (dx < 0) next();
+        else prev();
+      }, { passive: true });
+
+      const hash = Number(location.hash.replace("#", ""));
+      go(Number.isFinite(hash) && hash >= 1 ? hash - 1 : 0);
+      stage.focus({ preventScroll: true });
+    })();
+  </script>
+</body>
+</html>

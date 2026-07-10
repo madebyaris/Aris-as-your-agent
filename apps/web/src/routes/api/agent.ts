@@ -13,7 +13,7 @@ import {
   type BoardColumn,
   type ProofLabel,
 } from '@aris/tasks'
-import { getActiveApiKey, readSettings } from '@aris/workspace'
+import { getActiveAccount, readSettings } from '@aris/workspace'
 
 export const Route = createFileRoute('/api/agent')({
   server: {
@@ -35,7 +35,13 @@ export const Route = createFileRoute('/api/agent')({
         }
 
         const settings = await readSettings()
-        const apiKey = getActiveApiKey(settings)
+        const account = getActiveAccount(settings)
+        const provider = account?.provider ?? settings.defaultProvider ?? 'cursor'
+        const apiKey =
+          account?.apiKey ??
+          (provider === 'openrouter'
+            ? process.env.OPENROUTER_API_KEY
+            : process.env.CURSOR_API_KEY)
         const project = await getProject(body.projectId)
         if (!project) {
           return Response.json({ error: 'Project not found.' }, { status: 404 })
@@ -79,14 +85,15 @@ export const Route = createFileRoute('/api/agent')({
             try {
               const result = await streamArisResponse({
                 apiKey,
+                provider,
                 workspacePath: project.workspacePath,
                 userMessage: body.message!.trim(),
                 model: settings.defaultModel,
                 projectMode: project.mode,
                 agentNotes,
-                agentId: project.cursorAgentId,
+                agentId: provider === 'cursor' ? project.cursorAgentId : undefined,
                 phaseHint,
-                mode,
+                mode: provider === 'cursor' ? mode : undefined,
                 runKey,
                 force: body.force,
                 emit: (event) => {
